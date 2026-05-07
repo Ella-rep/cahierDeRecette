@@ -102,7 +102,7 @@ function findInternalHeaderRow(rows) {
     issueType: ['type de ticket', 'issuetype', 'type ticket', 'type'],
     id: ['id', 'identifiant', 'reference', 'ref', 'numero', 'num test', 'id test', 'code test', 'cas id', 'identificateur de cas de test'],
     priority: ['priorite', 'priority', 'criticite', 'importance', 'niveau'],
-    role: ['role', 'profil', 'acteur', 'utilisateur', 'type utilisateur', 'persona'],
+    role: ['donnees', 'role', 'profil', 'acteur', 'utilisateur', 'type utilisateur', 'persona'],
     scenario: ['scenario', 'cas de test', 'test', 'libelle', 'intitule', 'description courte', 'objet', 'cas usage', 'titre', 'resume', 'summary'],
     steps: ['etapes', 'etape', 'steps', 'procedure', 'actions', 'mode operatoire', 'deroule', 'description etapes', 'step', 'action'],
     expected: ['attendu', 'expected', 'resultat attendu', 'comportement attendu', 'resultat', 'expected result', 'verification'],

@@ -100,8 +100,8 @@
     <template id="formatRappel">
       <ul class="helper-list">
         <li>Format CSV Jira : separateur <strong>point-virgule</strong> — colonnes : <em>Type de ticket ; type de test ; Identificateur ; Résumé ; Action ; Priorité ; Résultat Attendu</em>.</li>
-        <li>Export Excel <strong>sans colonne image</strong> pour simplifier l import Jira/Xray.</li>
-        <li>Multi-etapes : chaque etape sur une ligne, derniere ligne porte le Resultat Attendu.</li>
+        <li><strong>Une ligne par étape</strong> : première ligne remplie complète, puis lignes de continuation avec Type/ID/Résumé vides.</li>
+        <li>Chaque étape a son propre Résultat Attendu.</li>
         <li>Import accepte colonnes Jira et variantes classiques (ID, Scenario, Etapes, Attendu).</li>
         <li>Priorites Haute/Moyenne/Basse converties en P1/P2/P3 a l import.</li>
       </ul>
@@ -130,8 +130,8 @@
             <span class="excel-col-desc">Haute / Moyenne / Basse ou P1 / P2 / P3</span>
           </div>
           <div class="excel-col-item excel-col-optional">
-            <span class="excel-col-name">Role</span>
-            <span class="excel-col-desc">Profil testeur (optionnel)</span>
+            <span class="excel-col-name">Données</span>
+            <span class="excel-col-desc">Profil testeur (optionnel) — ex: Admin, User Manager... — variante : Role</span>
           </div>
           <div class="excel-col-item excel-col-required">
             <span class="excel-col-name">Résumé</span>
@@ -153,7 +153,7 @@
   </dialog>
 
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <script src="js/generateur-cahier-recette-page-init.js"></script>
+  <script src="js/jira-xray-generator-page-init.js"></script>
   <script src="js/md-generator.js"></script>
 </body>
 </html>

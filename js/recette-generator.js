@@ -1,4 +1,4 @@
-const STORE_KEY = 'generateur-cahier-recette-v1';
+const STORE_KEY = 'jira-xray-generator-v1';
 const initialState = {
   meta: {
     project: '',
@@ -732,7 +732,7 @@ function renderCardView() {
           <span class="card-id">${escapeHtml(test.id)}</span>
           <span class="card-prio" style="background:${prioBg};color:${prioFg};">${escapeHtml(test.priority)}</span>
         </div>
-        <div class="card-role">${escapeHtml(test.role)}</div>
+        ${test.role ? `<div class="card-role">${escapeHtml(test.role)}</div>` : ''}
         <span class="card-result" style="background:${resultBg};color:${resultFg};">${escapeHtml(resultLabel)}</span>
       `;
       card.appendChild(header);
@@ -821,16 +821,33 @@ function renderClassicView() {
   const rowsEl = document.createElement('div');
   rowsEl.className = 'rows';
 
-  state.tests.forEach(test => {
-    const item = ensureItem(test.id);
-    const resultClass = (item.result || '').toLowerCase();
+  // Grouper les tests par testLibraryPath
+  const testsByLibrary = state.tests.reduce((acc, test) => {
+    const lib = test.testLibraryPath || 'Sans Bibliothèque';
+    if (!acc[lib]) acc[lib] = [];
+    acc[lib].push(test);
+    return acc;
+  }, {});
 
-    const row = document.createElement('div');
-    row.className = `row ${resultClass}`;
-    row.dataset.id = test.id;
-    row.dataset.search = `${test.id} ${test.role} ${test.scenario} ${test.steps} ${test.expected}`.toLowerCase();
-    row.dataset.priority = test.priority;
-    row.dataset.result = item.result || '';
+  // Rendre les tests groupés par bibliothèque
+  Object.entries(testsByLibrary).forEach(([libName, tests]) => {
+    // Section d'en-tête pour la bibliothèque
+    const libSection = document.createElement('div');
+    libSection.className = 'library-section';
+    libSection.innerHTML = `<div class="library-section-title">${escapeHtml(libName)}</div>`;
+    rowsEl.appendChild(libSection);
+
+    // Rendre tous les tests de cette bibliothèque
+    tests.forEach(test => {
+      const item = ensureItem(test.id);
+      const resultClass = (item.result || '').toLowerCase();
+
+      const row = document.createElement('div');
+      row.className = `row ${resultClass}`;
+      row.dataset.id = test.id;
+      row.dataset.search = `${test.id} ${test.role} ${test.scenario} ${test.steps} ${test.expected}`.toLowerCase();
+      row.dataset.priority = test.priority;
+      row.dataset.result = item.result || '';
 
       row.innerHTML = `
         <!-- En-tete de la carte -->
@@ -838,7 +855,7 @@ function renderClassicView() {
           <div class="card-header-meta">
             <span class="card-id">${escapeHtml(test.id)}</span>
             <span class="card-prio prio-${escapeHtml(test.priority)}">${escapeHtml(test.priority)}</span>
-            <span class="card-role">Role: ${escapeHtml(test.role)}</span>
+            ${test.role ? `<span class="card-role">Role: ${escapeHtml(test.role)}</span>` : ''}
             <span class="card-scenario">${escapeHtml(test.scenario)}</span>
           </div>
           <div class="card-header-actions">
@@ -1090,6 +1107,7 @@ function renderClassicView() {
 
       rowsEl.appendChild(row);
     });
+  });
 
     container.appendChild(rowsEl);
 
@@ -1404,7 +1422,7 @@ function exportExcel() {
   } else {
     const rows = formatReportRows();
     const classicRows = [
-      ['ID', 'Categorie', 'Priorite', 'Role', 'Scenario', 'Etapes', 'Attendu', 'Captures attendu (nb)', 'Resultat', 'Observation']
+      ['ID', 'Categorie', 'Priorite', 'Donn\u00e9es', 'Scenario', 'Etapes', 'Attendu', 'Captures attendu (nb)', 'Resultat', 'Observation']
     ];
     rows.forEach(row => {
       const test = state.tests.find(t => t.id === row.id) || {};
@@ -1633,12 +1651,13 @@ function findHeaderRow(rows) {
   const aliases = {
     id: ['id', 'identifiant', 'reference', 'ref', 'numero', 'num test', 'id test', 'code test', 'cas id', 'identificateur de cas de test'],
     priority: ['priorite', 'priority', 'criticite', 'importance', 'niveau', 'criticite metier'],
-    role: ['role', 'profil', 'acteur', 'utilisateur', 'type utilisateur', 'population', 'persona'],
+    role: ['donnees', 'role', 'profil', 'acteur', 'utilisateur', 'type utilisateur', 'population', 'persona'],
     scenario: ['scenario', 'cas de test', 'test', 'libelle', 'intitule', 'description', 'objet', 'cas usage', 'use case', 'titre', 'resume'],
     steps: ['etapes', 'etape', 'steps', 'procedure', 'actions', 'mode operatoire', 'deroule', 'description etapes', 'step', 'pre requis et etapes', 'action'],
     stepImage: ['image etape dataurl', 'image etape', 'capture etape dataurl', 'captures etapes dataurl', 'step image dataurl', 'step images dataurl'],
     expected: ['attendu', 'expected', 'resultat attendu', 'comportement attendu', 'resultat', 'expected result', 'oracle', 'verification', 'controle attendu'],
-    expectedScreens: ['captures attendu dataurl', 'captures attendu', 'captures', 'imprim ecran attendu', 'images attendu', 'screenshots expected']
+    expectedScreens: ['captures attendu dataurl', 'captures attendu', 'captures', 'imprim ecran attendu', 'images attendu', 'screenshots expected'],
+    testLibraryPath: ['chemin de la bibliotheque de tests', 'bibliotheque de tests', 'bibliotheque tests', 'test library path', 'library path']
   };
 
   const findColumnIndex = (normalizedRow, values) => {
@@ -1688,6 +1707,7 @@ function extractTestsFromRows(rows, headerInfo) {
     const expectedScreensCell = cellValue(row, headerInfo.mapping.expectedScreens);
     const priority = cellValue(row, headerInfo.mapping.priority);
     const roleFromColumn = cellValue(row, headerInfo.mapping.role) || '';
+    const testLibraryPath = cellValue(row, headerInfo.mapping.testLibraryPath) || '';
     const roleFromStep = extractRoleMarker(step);
     const cleanedStep = roleFromStep ? '' : step;
     const stepImages = parseStepImagesCell(stepImageCell);
@@ -1738,6 +1758,7 @@ function extractTestsFromRows(rows, headerInfo) {
       steps: built.steps,
       stepsData: built.stepsData,
       expected,
+      testLibraryPath,
       expectedScreenshots: parseExpectedScreensCell(expectedScreensCell)
     };
     result.push(currentTest);
@@ -1804,7 +1825,7 @@ function hydrateUi() {
 
 // ---------- Bindings d evenements ----------
 // Import Excel ouvert via modal (pas directement)
-// byId('importExcelBtn') event listener est dans cahier-recette.html
+// byId('importExcelBtn') event listener est dans campagne-recette.html
 byId('importExcelInput').addEventListener('change', async event => {
   const file = event.target.files && event.target.files[0];
   if (!file) return;

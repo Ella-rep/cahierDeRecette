@@ -11,11 +11,11 @@ Le projet fournit deux interfaces complementaires :
 Le workflow recommande est le suivant :
 
 1. Ouvrir `index.html` pour choisir l outil.
-2. Ouvrir `generateur-cahier-recette.html` (**Générateur Cas Test**) pour construire ou importer les cas de test.
+2. Ouvrir `jira-xray-generator.html` (**Générateur Cas Test**) pour construire ou importer les cas de test.
    - Ajouter etapes individuellement
    - **Uploader des images par etape** (drag-drop, clic, ou Ctrl+V)
    - Exporter en CSV pour Jira Xray ou en Excel pour la campagne de recette
-3. Ouvrir `cahier-recette.html` (**Campagne de Recette**) pour importer les cas et executer la campagne.
+3. Ouvrir `campagne-recette.html` (**Campagne de Recette**) pour importer les cas et executer la campagne.
    - **Voir les etapes avec cercles bleus numerotes et images associees**
    - Ajouter preuves d execution et qualifications
    - Exporter les resultats en Excel ou DOC
@@ -28,9 +28,9 @@ Le projet ne necessite pas de backend : tout fonctionne dans le navigateur (stoc
 
 ```text
 cahier-recette_generator/
-|- cahier-recette.html
+|- campagne-recette.html
 |- index.html
-|- generateur-cahier-recette.html
+|- jira-xray-generator.html
 |- jira-ticket-generator.html
 |- jira-import-test-template.csv
 |- jira-import-user-story-template.csv
@@ -50,7 +50,7 @@ cahier-recette_generator/
 
 ### 1) Générateur Cas Test
 
-Entree : `generateur-cahier-recette.html` + `js/md-generator.js`
+Entree : `jira-xray-generator.html` + `js/md-generator.js`
 
 Cet outil permet de creer et exporter les cas de test pour deux usages :
 - **Export CSV** : pour import direct dans Jira Xray
@@ -58,7 +58,7 @@ Cet outil permet de creer et exporter les cas de test pour deux usages :
 
 Fonctionnalites principales :
 
-- saisie manuelle des cas (ID, priorite, role, scenario, etapes avec images, attendu)
+- saisie manuelle des cas (ID, priorite, role, scenario, etapes avec images, attendu, **chemin bibliotheque Xray**)
 - import Excel/CSV avec detection d en-tetes tolerante (alias metier/Jira)
 - **upload d images par etape** : drag-drop, clic fichier, ou Ctrl+V (paste)
   - Support complet des formats : PNG, JPEG, WebP, BMP
@@ -74,12 +74,12 @@ Les images sont stockees en base64 dans le stepsArray pour persistence locale.
 
 ### 2) Execution de campagne
 
-Entree : `cahier-recette.html` + `js/recette-generator.js`
+Entree : `campagne-recette.html` + `js/recette-generator.js`
 
 Fonctionnalites principales :
 
-- import des tests depuis Excel/CSV (avec etapes et images)
-- affichage ameliore des etapes : **cercles bleus numerotes + titre + description + images**
+- import des tests depuis Excel/CSV (avec etapes, images et **chemin bibliotheque Xray**)
+- **affichage groupe par bibliotheque Xray** : tests organises sous headers de groupe par bibliotheque
 - qualification par test : `OK`, `KO`, `NA` avec feedback visuel
 - observation par test
 - ajout de capture pour les KO (mode classique)
@@ -92,6 +92,7 @@ Fonctionnalites principales :
   - **Excel** (`.xlsx`) avec images compressees
 
 Ameliorations recentes :
+- **Champ Bibliotheque Xray** : champ par test pour organiser les cas de test par bibliotheque (ex: Tests Admin, Tests User)
 - Etapes affichees avec cercle bleu numerote (40px, style primaire)
 - Support complet des images d etapes depuis le generateur
 - Affichage des images en dessous de la description d etape
@@ -99,6 +100,7 @@ Ameliorations recentes :
 - **DOC export optimise** : mise en page portrait, frames visibles sur tous les tests, espacement coherent, palette bleue
 - **Buttons feedback** : indication visuelle claire pour les selections OK/KO/NA (:focus-visible)
 - Format: [Cercle bleu: X] Etape X → Description → Image (si presente) → Zone capture
+- **Groupement par bibliotheque** : tests groupes par chemin de bibliotheque dans la campagne
 
 ### 3) Générateur Excel Jira
 
@@ -130,6 +132,7 @@ Colonnes reconnues via alias (exemples) :
 - Scenario : `scenario`, `resume`, `cas de test`, `libelle`
 - Etapes : `etapes`, `action`, `steps`, `procedure`
 - Attendu : `attendu`, `resultat attendu`, `expected`
+- **Bibliotheque Xray** : `chemin de la bibliotheque de tests`, `bibliotheque de tests`, `test library path`
 
 ### Export
 
@@ -153,7 +156,7 @@ Depuis le **Générateur Excel Jira** :
 Les donnees sont conservees dans le navigateur :
 
 - generateur : `generateur-modele-md-v1`
-- executeur : `generateur-cahier-recette-v1`
+- executeur : `jira-xray-generator-v1`
 
 Format des donnees du generateur :
 ```json
@@ -172,7 +175,8 @@ Format des donnees du generateur :
         { "text": "Etape 2", "image": "data:image/jpeg;base64,..." },
         { "text": "Etape 3", "image": null }
       ],
-      "expected": "Resultat attendu"
+      "expected": "Resultat attendu",
+      "testLibraryPath": "Tests Admin"
     }
   ]
 }
@@ -181,11 +185,27 @@ Format des donnees du generateur :
 Format des donnees de l executeur :
 ```json
 {
-  "tests": [ ... ],
+  "tests": [
+    {
+      "id": "TC-001",
+      "priority": "Haute",
+      "role": "Admin",
+      "scenario": "Description du test",
+      "steps": "Etape 1\nEtape 2",
+      "stepsData": [
+        { "text": "Etape 1", "image": null },
+        { "text": "Etape 2", "image": "data:image/jpeg;base64,..." }
+      ],
+      "expected": "Resultat attendu",
+      "testLibraryPath": "Tests Admin",
+      "expectedScreenshots": []
+    }
+  ],
   "items": {
-    "TC-001": { "result": "OK|KO|NA", "comment": "..." }
+    "TC-001": { "result": "OK|KO|NA", "comment": "...", "capture": null }
   },
-  "meta": { "project": "...", "tester": "..." }
+  "meta": { "project": "...", "tester": "...", "version": "...", "date": "..." },
+  "business": { "contexte": "...", "perimetre": "...", "regles": "..." }
 }
 ```
 
@@ -196,8 +216,8 @@ Format des donnees de l executeur :
 Aucune installation applicative n est requise.
 
 - ouvrir `index.html` dans un navigateur moderne
-- ou ouvrir directement `generateur-cahier-recette.html` si besoin
-- ouvrir `cahier-recette.html` pour la phase d execution
+- ou ouvrir directement `jira-xray-generator.html` si besoin
+- ouvrir `campagne-recette.html` pour la phase d execution
 
 Dependance front :
 

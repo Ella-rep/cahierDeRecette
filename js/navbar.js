@@ -18,8 +18,8 @@
 const NAV_PAGES = [
   { name: 'Accueil',                  href: 'index.html',                    id: 'home'      },
   { name: 'Générateur Excel Jira',    href: 'jira-ticket-generator.html',    id: 'jira'      },
-  { name: 'Générateur Cas Test',      href: 'generateur-cahier-recette.html',id: 'generateur'},
-  { name: 'Campagne de Recette',      href: 'cahier-recette.html',           id: 'recette'   }
+  { name: 'Générateur Cas Test',      href: 'jira-xray-generator.html',id: 'generateur'},
+  { name: 'Campagne de Recette',      href: 'campagne-recette.html',           id: 'recette'   }
 ];
 
 function loadFooter() {

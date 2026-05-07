@@ -37,7 +37,8 @@ function createEmptyRow() {
     scenario: '',
     steps: '',
     stepsArray: [],
-    expected: ''
+    expected: '',
+    testLibraryPath: ''
   };
 }
 
@@ -120,6 +121,7 @@ function renderRows() {
     const scenarioValue = escapeHtml(row.scenario || '');
     const expectedValue = escapeHtml(row.expected || '');
     const idValue = escapeHtml(row.id || '');
+    const testLibraryPathValue = escapeHtml(row.testLibraryPath || '');
 
     rowCard.innerHTML = `
       <div class="test-row-header">
@@ -138,8 +140,12 @@ function renderRows() {
           </select>
         </div>
         <div class="test-row-field">
-          <label>Role</label>
-          <input type="text" data-role="${index}" class="test-row-input" value="${roleValue}" placeholder="Ex: Admin">
+          <label>Données</label>
+          <input type="text" data-role="${index}" class="test-row-input" value="${roleValue}" placeholder="Ex: Admin, User Manager...">
+        </div>
+        <div class="test-row-field">
+          <label>Bibliothèque Xray</label>
+          <input type="text" data-library-path="${index}" class="test-row-input" value="${testLibraryPathValue}" placeholder="Ex: Tests Admin">
         </div>
       </div>
       
@@ -194,6 +200,14 @@ function renderRows() {
     if (expectedTextarea) {
       expectedTextarea.addEventListener('input', () => {
         state.rows[index].expected = expectedTextarea.value;
+        save();
+      });
+    }
+
+    const libraryPathInput = rowCard.querySelector(`[data-library-path="${index}"]`);
+    if (libraryPathInput) {
+      libraryPathInput.addEventListener('input', () => {
+        state.rows[index].testLibraryPath = libraryPathInput.value;
         save();
       });
     }
@@ -523,7 +537,8 @@ function exportCsvJira() {
     'Résumé',
     'Action',
     'Priorité',
-    'Résultat Attendu'
+    'Résultat Attendu',
+    'Chemin de la bibliothèque de tests'
   ];
 
   const rows = [];
@@ -535,15 +550,15 @@ function exportCsvJira() {
     const safeSteps = steps.length ? steps : [''];
     safeSteps.forEach((stepText, idx) => {
       const isFirst = idx === 0;
-      const isLast = idx === safeSteps.length - 1;
       rows.push([
-        isFirst ? 'test' : '',
+        'test',
         isFirst ? 'Manual' : '',
-        isFirst ? (r.id || '') : '',
+        r.id || '',
         isFirst ? (r.scenario || '') : '',
         stepText,
         r.priority || 'Moyenne',
-        isLast ? (r.expected || '') : ''
+        r.expected || '',
+        isFirst ? (r.testLibraryPath || '') : ''
       ]);
     });
   });
@@ -594,7 +609,7 @@ async function compressForExcel(dataUrl) {
 // L'import de la campagne supporte deja ce format multi-lignes.
 async function exportExcel() {
   const wb = XLSX.utils.book_new();
-  const header = ['ID', 'Priorité', 'Role', 'Scénario', 'Etape', 'Résultat Attendu', 'Captures Etapes DataURL'];
+  const header = ['ID', 'Priorité', 'Données', 'Scénario', 'Etape', 'Résultat Attendu', 'Captures Etapes DataURL', 'Chemin de la bibliothèque de tests'];
   const wsData = [header];
 
   for (const r of state.rows) {
@@ -609,7 +624,8 @@ async function exportExcel() {
         i === 0 ? r.scenario : '',
         step.text || '',
         i === 0 ? r.expected : '',   // Résultat attendu seulement sur la 1ere ligne
-        imageCell
+        imageCell,
+        i === 0 ? (r.testLibraryPath || '') : ''  // Bibliothèque Xray seulement sur la 1ere ligne
       ]);
     }
   }
@@ -632,10 +648,11 @@ function importRowsFromAoa(aoa) {
   const headers = aoa[0].map(h => normalizeHeader(h));
   const iId = headers.findIndex(h => h.includes('identifi'));
   const iPriority = headers.findIndex(h => h.includes('priorit'));
-  const iRole = headers.findIndex(h => h.includes('role'));
+  const iRole = headers.findIndex(h => h.includes('donnees') || h.includes('role') || h.includes('profil'));
   const iScenario = headers.findIndex(h => h.includes('scenario') || h.includes('resum'));
   const iSteps = headers.findIndex(h => h.includes('action') || h.includes('etape'));
   const iExpected = headers.findIndex(h => h.includes('attendu') || h.includes('resultat'));
+  const iLibPath = headers.findIndex(h => h.includes('bibliotheque') || h.includes('library'));
 
   const imported = aoa.slice(1).map(r => ({
     id: iId >= 0 ? String(r[iId] || '').trim() : '',
@@ -644,7 +661,8 @@ function importRowsFromAoa(aoa) {
     scenario: iScenario >= 0 ? String(r[iScenario] || '').trim() : '',
     steps: iSteps >= 0 ? String(r[iSteps] || '').trim() : '',
     stepsArray: [],
-    expected: iExpected >= 0 ? String(r[iExpected] || '').trim() : ''
+    expected: iExpected >= 0 ? String(r[iExpected] || '').trim() : '',
+    testLibraryPath: iLibPath >= 0 ? String(r[iLibPath] || '').trim() : ''
   })).filter(r => r.id || r.scenario || r.steps || r.expected);
 
   if (!imported.length) return;
