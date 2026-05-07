@@ -1,0 +1,19 @@
+Type de ticket;Resume;Description;Priorite;Personne Assignee
+Tâche;Test de connexion;"En tant qu Administrateur,
+
+je veux voir un bouton Creer un parcours type et ouvrir l assistant en 3 etapes,
+afin de demarrer rapidement la creation d un parcours.
+
+Criteres d acceptation
+
+Le bouton Creer un parcours type est visible sur l interface Admin.
+Le clic ouvre l assistant.
+Les 3 etapes sont affichees sous forme d un fil rouge a gauche de la fenetre.
+Navigation :
+Boutons visibles selon etape.
+Precedent / Suivant / Annuler aux etapes 1 a 2.
+Precedent / Valider / Annuler a l etape 3.";Haute;F41374
+Anomalie;Page slow to load;La page d'accueil prend plus de 5 secondes a charger;Moyenne;C28280
+Tâche;Valider filtrage;Tester les differents filtres disponibles dans la recherche;Moyenne;
+User Story;Export de donnees;Permettre a l utilisateur d'exporter les donnees au format CSV;Haute;
+Tâche;Valider suppression;Valider que la suppression est bien propagee dans la base de donnees;Moyenne;

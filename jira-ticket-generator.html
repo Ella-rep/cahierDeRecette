@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generateur de tickets Jira (US)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/navbar.js"></script>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- En-tête de page -->
+    <div class="jt-header">
+      <div>
+        <h1 class="jt-title">Generateur Tickets Jira</h1>
+        <p class="jt-subtitle">Preparez vos User Stories et Anomalies pour <span class="jt-subtitle-accent">import Jira</span></p>
+      </div>
+      <div class="jt-header-actions">
+        <button id="importInternalExcelBtn" type="button" class="jt-btn-outline">&#8679; Import Excel</button>
+        <input id="importInternalExcelInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+        <button id="exportExcelBtn" type="button" class="jt-btn-outline">&#8681; Export Excel</button>
+        <button id="addRowBtn" type="button" class="jt-btn-primary btn-primary">+ Nouveau Ticket</button>
+      </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="jt-stats">
+      <div class="jt-stat jt-stat-blue">
+        <div class="jt-stat-label">Total Tickets</div>
+        <div class="jt-stat-value" id="statTotal">0</div>
+      </div>
+      <div class="jt-stat jt-stat-green">
+        <div class="jt-stat-label">User Stories</div>
+        <div class="jt-stat-value" id="statUS">0</div>
+      </div>
+      <div class="jt-stat jt-stat-red">
+        <div class="jt-stat-label">Anomalies</div>
+        <div class="jt-stat-value" id="statAno">0</div>
+      </div>
+      <div class="jt-stat jt-stat-gray">
+        <div class="jt-stat-label">Taches</div>
+        <div class="jt-stat-value" id="statTask">0</div>
+      </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="card jt-config">
+      <div class="jt-config-row">
+        <label class="jt-config-label">
+          Nom du fichier export
+          <input id="fileName" type="text" placeholder="jira-import-user-story">
+        </label>
+        <label class="jt-config-label">
+          Assignee par defaut
+          <input id="defaultAssignee" type="text" placeholder="jdupont">
+        </label>
+        <label class="jt-config-label">
+          Priorite par defaut
+          <select id="defaultPriority">
+            <option value="Haute">Haute</option>
+            <option value="Moyenne" selected>Moyenne</option>
+            <option value="Basse">Basse</option>
+          </select>
+        </label>
+        <div class="jt-config-actions">
+          <button id="exportCsvBtn" type="button" class="jt-btn-ghost">Export CSV</button>
+          <button id="addSamplesBtn" type="button" class="jt-btn-ghost">Exemples</button>
+          <button id="clearRowsBtn" type="button" class="jt-btn-ghost">Vider</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Popin format import Excel -->
+    <dialog id="importFormatModal" class="modal-card">
+      <div class="modal-header">
+        <h2>Format Excel attendu</h2>
+        <button type="button" id="importFormatClose" class="modal-close" title="Fermer">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">
+          Votre fichier Excel doit respecter les colonnes suivantes (la ligne d'en-tete est detectee automatiquement) :
+        </p>
+        <div class="table-scroll">
+          <table class="import-format-table">
+            <thead>
+              <tr>
+                <th>Type de ticket</th>
+                <th>Resume</th>
+                <th>Description</th>
+                <th>Priorite</th>
+                <th>Personne Assignee</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>User Story</td>
+                <td>Creer un parcours type depuis l assistant</td>
+                <td>En tant qu administrateur, je veux...</td>
+                <td>Haute</td>
+                <td>jdupont</td>
+              </tr>
+              <tr class="table-row-alt">
+                <td>Anomalie</td>
+                <td>Temps de chargement trop long</td>
+                <td>La page d accueil depasse 5 secondes...</td>
+                <td>Moyenne</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="modal-hint-list">
+          <li>Valeurs acceptees pour <strong>Type de ticket</strong> : <code>User Story</code>, <code>Anomalie</code>, <code>Tache</code></li>
+          <li>Valeurs acceptees pour <strong>Priorite</strong> : <code>Haute</code>, <code>Moyenne</code>, <code>Basse</code> (ou P1/P2/P3)</li>
+          <li>La colonne <strong>Personne Assignee</strong> est facultative</li>
+          <li>Les colonnes supplementaires sont ignorees</li>
+        </ul>
+      </div>
+      <div class="modal-actions modal-actions-end">
+        <button type="button" id="importFormatCancel" class="jt-btn-ghost">Annuler</button>
+        <button type="button" id="importFormatConfirm" class="jt-btn-primary btn-primary">Choisir le fichier &rarr;</button>
+      </div>
+    </dialog>
+
+    <!-- Liste des tickets -->
+    <div id="rowsBuilder" class="jt-builder-list"></div>
+
+    <div id="status" class="small status-bar"></div>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="js/jira-ticket-page-init.js"></script>
+  <script src="js/jira-ticket-generator.js"></script>
+</body>
+</html>

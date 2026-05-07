@@ -1,0 +1,365 @@
+/* ── Composants partagés pages internes (jt-*) ──────────── */
+
+/* Header de page */
+.jt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.jt-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0284c7;
+  margin: 0 0 4px;
+}
+
+.jt-subtitle {
+  font-size: 14px;
+  color: #475467;
+  margin: 0;
+}
+
+.jt-subtitle-accent {
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.jt-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Boutons */
+.jt-btn-primary {
+  background: #0284c7;
+  color: #fff;
+  border: 1px solid #0284c7;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.jt-btn-primary:hover {
+  background: #0b665f;
+}
+
+.jt-btn-outline {
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.jt-btn-outline:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.jt-btn-ghost {
+  background: transparent;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.jt-btn-ghost:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.jt-btn-ghost--danger {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.jt-btn-ghost--danger:hover {
+  background: #fef2f2;
+}
+
+/* Stats */
+.jt-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.jt-stats--4 { grid-template-columns: repeat(4, 1fr); }
+.jt-stats--5 { grid-template-columns: repeat(5, 1fr); }
+
+.jt-stat {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 4px solid transparent;
+}
+
+.jt-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #64748b;
+}
+
+.jt-stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.jt-stat-blue  { border-left-color: #3b82f6; }
+.jt-stat-green { border-left-color: #22c55e; }
+.jt-stat-red   { border-left-color: #ef4444; }
+.jt-stat-amber { border-left-color: #f59e0b; }
+.jt-stat-gray  { border-left-color: #94a3b8; }
+
+/* Config bar */
+.jt-config-bar {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.jt-config-fields {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.jt-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.jt-config-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.jt-config-input,
+.jt-config-select,
+.jt-config-search {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  color: #111827;
+}
+
+.jt-config-input:focus,
+.jt-config-select:focus,
+.jt-config-search:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.jt-config-search {
+  min-width: 220px;
+}
+
+.jt-config-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Legacy jt-config (jira page) */
+.jt-config {
+  margin-bottom: 20px;
+}
+
+.jt-config-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+/* Builder list */
+.jt-builder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Tickets Jira - cartes */
+.jt-ticket {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+}
+
+.jt-ticket-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.jt-ticket-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+/* Champs */
+.jt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.jt-field-grow {
+  flex: 1;
+}
+
+.jt-field-full {
+  width: 100%;
+}
+
+.jt-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.jt-field input,
+.jt-field select,
+.jt-field textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  color: #111827;
+}
+
+.jt-field textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+.jt-field input:focus,
+.jt-field select:focus,
+.jt-field textarea:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(15,118,110,0.1);
+}
+
+/* Badges */
+.jt-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475467;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.jt-badge-us     { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.jt-badge-ano    { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.jt-badge-task   { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+.jt-badge-other  { background: #f8fafc; color: #475467; border-color: #cbd5e1; }
+.jt-badge-haute  { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+.jt-badge-moyenne{ background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.jt-badge-basse  { background: #f0fdf4; color: #16a34a; border-color: #86efac; }
+
+/* Boutons ticket */
+.jt-delete-btn {
+  background: none;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  align-self: flex-start;
+  transition: background 0.15s;
+}
+
+.jt-delete-btn:hover {
+  background: #fef2f2;
+}
+
+.jt-duplicate-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #475467;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.jt-duplicate-btn:hover {
+  background: #f1f5f9;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .jt-stats, .jt-stats--4, .jt-stats--5 { grid-template-columns: repeat(2, 1fr); }
+  .jt-header { flex-direction: column; align-items: flex-start; }
+}

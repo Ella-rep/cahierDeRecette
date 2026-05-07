@@ -1,0 +1,137 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestion des Tests &amp; campagnes de recette</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/navbar.js"></script>
+</head>
+<body class="index-page">
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      loadHeader({
+        title: 'Gestion des Tests & campagnes de recette',
+        subtitle: 'Plateforme de gestion de vos campagnes de test fonctionnel'
+      });
+    });
+  </script>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>Gestion des Tests &amp; campagnes de recette</h1>
+    <p>Plateforme complete pour la gestion de vos campagnes de test fonctionnel.<br>Choisissez le module adapte a votre besoin.</p>
+  </section>
+
+  <!-- Module cards -->
+  <div class="modules">
+
+    <!-- P1 : Tickets Jira -->
+    <div class="module-card">
+      <div class="module-card-header">
+        <div class="module-icon icon-blue">⚡</div>
+        <span class="priority-badge badge-p1">P1</span>
+      </div>
+      <div class="module-card-body">
+        <h2>Tickets Jira (US)</h2>
+        <p>Creez et gerez vos User Stories et Anomalies. Preparez des imports en masse pour Jira avec tous les champs requis.</p>
+        <ul class="feature-list">
+          <li>User Stories &amp; Anomalies</li>
+          <li>Priorisation des tickets</li>
+          <li>Import template Jira</li>
+          <li>Export Excel pour import</li>
+        </ul>
+      </div>
+      <div class="module-card-footer">
+        <span class="footer-category">👥 Collaboration</span>
+        <span class="footer-role">Equipe Dev</span>
+      </div>
+      <a class="module-btn" href="jira-ticket-generator.html">Acceder au module →</a>
+    </div>
+
+    <!-- P2 : Generateur de cas de test -->
+    <div class="module-card">
+      <div class="module-card-header">
+        <div class="module-icon icon-amber">📄</div>
+        <span class="priority-badge badge-p2">P2</span>
+      </div>
+      <div class="module-card-body">
+        <h2>Generateur de Cas</h2>
+        <p>Construisez votre referentiel de cas de test. Creez, importez et organisez vos scenarios de test avec gestion des priorites.</p>
+        <ul class="feature-list">
+          <li>Creation de cas de test</li>
+          <li>Import Excel/CSV</li>
+          <li>Gestion des priorites</li>
+          <li>Export CSV Jira</li>
+        </ul>
+      </div>
+      <div class="module-card-footer">
+        <span class="footer-category">⚙️ Preparation</span>
+        <span class="footer-role">Referentiel</span>
+      </div>
+      <a class="module-btn" href="generateur-cahier-recette.html">Acceder au module →</a>
+    </div>
+
+    <!-- P3 : Campagne de Recette -->
+    <div class="module-card">
+      <div class="module-card-header">
+        <div class="module-icon icon-green">📋</div>
+        <span class="priority-badge badge-p3">P3</span>
+      </div>
+      <div class="module-card-body">
+        <h2>Campagne de Recette</h2>
+        <p>Qualifiez vos cas de test en temps reel avec les statuts OK, KO ou NA. Suivez la progression de votre campagne et exportez les resultats.</p>
+        <ul class="feature-list">
+          <li>Qualification OK/KO/NA</li>
+          <li>Vue classique &amp; matrice</li>
+          <li>Filtres et recherche avances</li>
+          <li>Export Excel/Word</li>
+        </ul>
+      </div>
+      <div class="module-card-footer">
+        <span class="footer-category">📁 Execution</span>
+        <span class="footer-role">Metier</span>
+      </div>
+      <a class="module-btn" href="cahier-recette.html">Acceder au module →</a>
+    </div>
+
+  </div>
+
+  <!-- Info banner -->
+  <div class="info-banner">
+    <div class="info-banner-inner">
+      <div class="info-icon">✓</div>
+      <div>
+        <h3>Sauvegarde automatique</h3>
+        <p>Toutes vos donnees sont automatiquement sauvegardees dans votre navigateur. Vous pouvez importer et exporter vos donnees a tout moment en Excel, CSV ou Word.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="stat-value">100%</div>
+      <div class="stat-label">Local &amp; Securise</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">3</div>
+      <div class="stat-label">Modules Integres</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value">∞</div>
+      <div class="stat-label">Tests Illimites</div>
+    </div>
+  </div>
+
+</body>
+</html>

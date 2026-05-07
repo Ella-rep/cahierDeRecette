@@ -1,0 +1,6 @@
+﻿Type de ticket;type de test;Identificateur de cas de test;Résumé;Action;Priorité;Résultat Attendu
+test;Manual;Test de connexion;Valider que un utilisateur peut se connecter a l'application avec des credentials corrects;1. Ouvrir l'application;Moyenne;
+;;;;2. Saisir login + mot de passe;Moyenne;
+;;;;3. Cliquer sur Connexion;Moyenne;l'utilisateur est connecté
+test;Manual;Page slow to load;La page d'accueil prend plus de 5 secondes a charger;Ouvrir la page d'accueil;Moyenne;La page charge en moins de 5s
+test;Manual;Valider filtrage;Tester les differents filtres disponibles dans la recherche;Appliquer un filtre date;Moyenne;Résultats filtrés correctement

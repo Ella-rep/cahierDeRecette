@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generateur de Cas de Test (Export Jira/Xray)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/navbar.js"></script>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- En-tête de page -->
+    <div class="jt-header">
+      <div>
+        <h1 class="jt-title">Generateur de Cas de Test</h1>
+        <p class="jt-subtitle">Construisez votre referentiel pour <span class="jt-subtitle-accent">export Jira / Xray</span></p>
+      </div>
+      <div class="jt-header-actions">
+        <button id="importExcelBtn" type="button" class="jt-btn-outline">&#8679; Import Excel</button>
+        <input id="importExcelInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+        <button id="downloadJiraCsvBtn" type="button" class="jt-btn-outline">&#8681; Export CSV Jira</button>
+        <button id="downloadExcelBtn" type="button" class="jt-btn-outline">&#8681; Export Excel</button>
+        <button id="addRowBtn" type="button" class="jt-btn-primary btn-primary">+ Ajouter un test</button>
+      </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="jt-stats jt-stats--4">
+      <div class="jt-stat jt-stat-blue">
+        <div class="jt-stat-label">Total Tests</div>
+        <div class="jt-stat-value" id="statTotal">0</div>
+      </div>
+      <div class="jt-stat jt-stat-red">
+        <div class="jt-stat-label">P1 - Haute</div>
+        <div class="jt-stat-value" id="statP1">0</div>
+      </div>
+      <div class="jt-stat jt-stat-amber">
+        <div class="jt-stat-label">P2 - Moyenne</div>
+        <div class="jt-stat-value" id="statP2">0</div>
+      </div>
+      <div class="jt-stat jt-stat-green">
+        <div class="jt-stat-label">P3 - Basse</div>
+        <div class="jt-stat-value" id="statP3">0</div>
+      </div>
+    </div>
+
+    <!-- Metadonnees projet -->
+    <div class="jt-config-bar">
+      <div class="jt-config-fields">
+        <div class="jt-config-field">
+          <label class="jt-config-label">Projet</label>
+          <input id="projectName" type="text" class="jt-config-input" placeholder="XPER">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Version</label>
+          <input id="projectVersion" type="text" class="jt-config-input" placeholder="v2.3.0">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Auteur</label>
+          <input id="projectAuthor" type="text" class="jt-config-input" placeholder="Chef de projet">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Date cible</label>
+          <input id="projectDate" type="date" class="jt-config-input">
+        </div>
+      </div>
+      <div class="jt-config-actions">
+        <button id="addSampleBtn" type="button" class="jt-btn-ghost">Exemples</button>
+        <button id="resetRowsBtn" type="button" class="jt-btn-ghost">Vider</button>
+      </div>
+    </div>
+
+    <!-- Sections metier (accordion) -->
+    <details class="biz-accordion">
+      <summary class="biz-accordion-title"><span class="biz-accordion-icon">▶</span> Sections metier <span class="biz-accordion-hint">objectif, perimetre, environnement…</span></summary>
+      <div class="biz-accordion-body">
+        <div class="biz-grid">
+          <label>Objectif<textarea id="bizObjectif"></textarea></label>
+          <label>Perimetre<textarea id="bizPerimetre"></textarea></label>
+          <label>Environnement et preconditions<textarea id="bizEnvironnement"></textarea></label>
+          <label>Jeu de donnees<textarea id="bizJeuDonnees"></textarea></label>
+          <label>Regles d execution<textarea id="bizReglesExecution"></textarea></label>
+          <label>Criteres de sortie<textarea id="bizCriteresSortie"></textarea></label>
+        </div>
+        <button id="resetBusinessBtn" type="button" class="jt-btn-ghost" style="margin-top:10px">Reinitialiser sections</button>
+      </div>
+    </details>
+
+    <!-- Liste des cas de test -->
+    <div id="rowsBuilder" class="jt-builder-list"></div>
+
+    <!-- Format rappel (masqué, utilisé dans modal) -->
+    <template id="formatRappel">
+      <ul class="helper-list">
+        <li>Format CSV Jira : separateur <strong>point-virgule</strong> — colonnes : <em>Type de ticket ; type de test ; Identificateur ; Résumé ; Action ; Priorité ; Résultat Attendu</em>.</li>
+        <li>Export Excel <strong>sans colonne image</strong> pour simplifier l import Jira/Xray.</li>
+        <li>Multi-etapes : chaque etape sur une ligne, derniere ligne porte le Resultat Attendu.</li>
+        <li>Import accepte colonnes Jira et variantes classiques (ID, Scenario, Etapes, Attendu).</li>
+        <li>Priorites Haute/Moyenne/Basse converties en P1/P2/P3 a l import.</li>
+      </ul>
+    </template>
+
+  </div>
+
+  <dialog id="excelGuideModal" class="modal-card" aria-labelledby="excelGuideTitle">
+      <div class="modal-header">
+        <div>
+          <h2 id="excelGuideTitle">Import Excel : mode operatoire</h2>
+          <div class="small">Preparez votre fichier avant import pour eviter les erreurs de detection.</div>
+        </div>
+        <button id="closeExcelGuideBtn" type="button" class="modal-close" aria-label="Fermer">x</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-title section-title--notop">Structure attendue</div>
+        <p class="small small--mb">La premiere ligne utile de votre feuille doit contenir les en-tetes de colonnes. Les colonnes ci-dessous sont attendues (les noms exacts ne sont pas obligatoires, les variantes Jira sont egalement reconnues) :</p>
+        <div class="excel-columns-preview">
+          <div class="excel-col-item excel-col-required">
+            <span class="excel-col-name">Identificateur de cas de test</span>
+            <span class="excel-col-desc">Identifiant unique — variante : ID</span>
+          </div>
+          <div class="excel-col-item excel-col-optional">
+            <span class="excel-col-name">Priorité</span>
+            <span class="excel-col-desc">Haute / Moyenne / Basse ou P1 / P2 / P3</span>
+          </div>
+          <div class="excel-col-item excel-col-optional">
+            <span class="excel-col-name">Role</span>
+            <span class="excel-col-desc">Profil testeur (optionnel)</span>
+          </div>
+          <div class="excel-col-item excel-col-required">
+            <span class="excel-col-name">Résumé</span>
+            <span class="excel-col-desc">Intitule du cas de test — variante : Scenario</span>
+          </div>
+          <div class="excel-col-item excel-col-required">
+            <span class="excel-col-name">Action</span>
+            <span class="excel-col-desc">Etape(s) a executer — variante : Etapes</span>
+          </div>
+          <div class="excel-col-item excel-col-required">
+            <span class="excel-col-name">Résultat Attendu</span>
+            <span class="excel-col-desc">Comportement attendu — variante : Attendu</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="okExcelGuideBtn" type="button" class="jt-btn-primary btn-primary">Compris</button>
+      </div>
+  </dialog>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="js/generateur-cahier-recette-page-init.js"></script>
+  <script src="js/md-generator.js"></script>
+</body>
+</html>

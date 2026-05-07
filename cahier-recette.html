@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campagne de Recette</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/footer.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="js/navbar.js"></script>
+</head>
+<body>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      loadNavbar({
+        title: 'Campagne de Recette',
+        subtitle: 'Chargez un fichier Excel/CSV et executez la campagne',
+        activePage: 'recette'
+      });
+    });
+  </script>
+  <div class="wrap">
+
+    <!-- En-tête de page -->
+    <div class="jt-header">
+      <div>
+        <h1 class="jt-title">Campagne de Recette</h1>
+        <p class="jt-subtitle">Qualifiez vos cas de test avec les statuts <span class="jt-subtitle-accent">OK / KO / NA</span></p>
+      </div>
+      <div class="jt-header-actions">
+        <button id="importExcelBtn" type="button" class="jt-btn-outline">&#8679; Import Excel</button>
+        <input id="importExcelInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+        <button id="exportExcelBtn" type="button" class="jt-btn-outline">&#8681; Export Excel</button>
+        <button id="exportDocBtn" type="button" class="jt-btn-outline">&#8681; Export DOC</button>
+        <button id="resetBtn" type="button" class="jt-btn-ghost">Reinitialiser</button>
+      </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="jt-stats jt-stats--5">
+      <div class="jt-stat jt-stat-blue">
+        <div class="jt-stat-label">Total</div>
+        <div class="jt-stat-value" id="sTotal">0</div>
+      </div>
+      <div class="jt-stat jt-stat-green">
+        <div class="jt-stat-label">OK</div>
+        <div class="jt-stat-value" id="sOk">0</div>
+      </div>
+      <div class="jt-stat jt-stat-red">
+        <div class="jt-stat-label">KO</div>
+        <div class="jt-stat-value" id="sKo">0</div>
+      </div>
+      <div class="jt-stat jt-stat-gray">
+        <div class="jt-stat-label">NA</div>
+        <div class="jt-stat-value" id="sNa">0</div>
+      </div>
+      <div class="jt-stat jt-stat-blue">
+        <div class="jt-stat-label">Taux OK</div>
+        <div class="jt-stat-value" id="sRate">0%</div>
+      </div>
+    </div>
+
+    <!-- Config campagne -->
+    <div class="jt-config-bar">
+      <div class="jt-config-fields">
+        <div class="jt-config-field">
+          <label class="jt-config-label">Projet</label>
+          <input id="metaProject" type="text" class="jt-config-input" placeholder="XPER">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Version</label>
+          <input id="metaVersion" type="text" class="jt-config-input" placeholder="v2.3.0">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Testeur</label>
+          <input id="metaTester" type="text" class="jt-config-input" placeholder="QA01">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Date campagne</label>
+          <input id="metaDate" type="date" class="jt-config-input">
+        </div>
+      </div>
+      <div class="jt-config-actions">
+        <input id="q" type="search" placeholder="Rechercher..." class="jt-config-search">
+        <select id="priorityFilter" class="jt-config-select">
+          <option value="">Toutes priorites</option>
+          <option value="P1">P1</option>
+          <option value="P2">P2</option>
+          <option value="P3">P3</option>
+        </select>
+        <select id="resultFilter" class="jt-config-select">
+          <option value="">Tous resultats</option>
+          <option value="OK">OK</option>
+          <option value="KO">KO</option>
+          <option value="NA">NA</option>
+        </select>
+        <button id="toggleViewBtn" type="button" class="jt-btn-ghost">Vue matrice</button>
+      </div>
+    </div>
+
+    <!-- Sections metier (accordion) -->
+    <details class="biz-accordion">
+      <summary class="biz-accordion-title"><span class="biz-accordion-icon">▶</span> Sections metier <span class="biz-accordion-hint">contexte, perimetre, regles…</span></summary>
+      <div class="biz-accordion-body">
+        <div class="biz-grid">
+          <label>Objectif<textarea id="bizObjectif"></textarea></label>
+          <label>Perimetre<textarea id="bizPerimetre"></textarea></label>
+          <label>Environnement et preconditions<textarea id="bizEnvironnement"></textarea></label>
+          <label>Jeu de donnees<textarea id="bizJeuDonnees"></textarea></label>
+          <label>Regles d execution<textarea id="bizReglesExecution"></textarea></label>
+          <label>Criteres de sortie<textarea id="bizCriteresSortie"></textarea></label>
+        </div>
+        <button id="resetSectionsBtn" type="button" class="jt-btn-ghost" style="margin-top:10px">Reinitialiser sections</button>
+      </div>
+    </details>
+
+    <!-- Contenu des tests -->
+    <div class="card">
+      <div id="rowsContainer"></div>
+    </div>
+  </div>
+
+  <dialog id="importGuideModal" class="modal-card" aria-labelledby="importGuideTitle">
+    <div class="modal-header">
+      <div>
+        <h2 id="importGuideTitle">Import Excel : mode operatoire</h2>
+        <div class="small">Preparez votre fichier avant import pour eviter les erreurs de detection.</div>
+      </div>
+      <button id="closeImportGuideBtn" type="button" class="modal-close" aria-label="Fermer">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-title section-title--notop">Structure attendue</div>
+      <p class="small small--mb">La premiere ligne utile de votre feuille doit contenir les en-tetes de colonnes. Les colonnes ci-dessous sont attendues (les noms exacts ne sont pas obligatoires, les variantes Jira sont egalement reconnues) :</p>
+      <div class="excel-columns-preview">
+        <div class="excel-col-item excel-col-required">
+          <span class="excel-col-name">Identificateur de cas de test</span>
+          <span class="excel-col-desc">Identifiant unique — variante : ID</span>
+        </div>
+        <div class="excel-col-item excel-col-optional">
+          <span class="excel-col-name">Priorité</span>
+          <span class="excel-col-desc">Haute / Moyenne / Basse ou P1 / P2 / P3</span>
+        </div>
+        <div class="excel-col-item excel-col-optional">
+          <span class="excel-col-name">Role</span>
+          <span class="excel-col-desc">Profil testeur (optionnel)</span>
+        </div>
+        <div class="excel-col-item excel-col-required">
+          <span class="excel-col-name">Résumé</span>
+          <span class="excel-col-desc">Intitule du cas de test — variante : Scenario</span>
+        </div>
+        <div class="excel-col-item excel-col-required">
+          <span class="excel-col-name">Action</span>
+          <span class="excel-col-desc">Etape(s) a executer — variante : Etapes</span>
+        </div>
+        <div class="excel-col-item excel-col-required">
+          <span class="excel-col-name">Résultat Attendu</span>
+          <span class="excel-col-desc">Comportement attendu — variante : Attendu</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="okImportGuideBtn" type="button" class="jt-btn-primary btn-primary">Compris</button>
+    </div>
+  </dialog>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="js/recette-generator.js"></script>
+  <script>
+    document.getElementById('importExcelBtn').addEventListener('click', function() {
+      document.getElementById('importGuideModal').showModal();
+    });
+    document.getElementById('closeImportGuideBtn').addEventListener('click', function() {
+      document.getElementById('importGuideModal').close();
+    });
+    document.getElementById('okImportGuideBtn').addEventListener('click', function() {
+      document.getElementById('importGuideModal').close();
+      document.getElementById('importExcelInput').click();
+    });
+  </script>
+</body>
+</html>
