@@ -140,7 +140,7 @@ function renderRows() {
           </select>
         </div>
         <div class="test-row-field">
-          <label>Données</label>
+          <label>Role</label>
           <input type="text" data-role="${index}" class="test-row-input" value="${roleValue}" placeholder="Ex: Admin, User Manager...">
         </div>
         <div class="test-row-field">
@@ -609,7 +609,7 @@ async function compressForExcel(dataUrl) {
 // L'import de la campagne supporte deja ce format multi-lignes.
 async function exportExcel() {
   const wb = XLSX.utils.book_new();
-  const header = ['ID', 'Priorité', 'Données', 'Scénario', 'Etape', 'Résultat Attendu', 'Captures Etapes DataURL', 'Chemin de la bibliothèque de tests'];
+  const header = ['ID', 'Priorité', 'Role', 'Scénario', 'Etape', 'Résultat Attendu', 'Captures Etapes DataURL', 'Chemin de la bibliothèque de tests'];
   const wsData = [header];
 
   for (const r of state.rows) {
@@ -620,6 +620,7 @@ async function exportExcel() {
       wsData.push([
         i === 0 ? r.id       : '',   // ID seulement sur la 1ere ligne
         i === 0 ? r.priority : '',
+        i === 0 ? r.role     : '',
         i === 0 ? r.role     : '',
         i === 0 ? r.scenario : '',
         step.text || '',

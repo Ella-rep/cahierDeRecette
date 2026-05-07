@@ -37,7 +37,7 @@ let state = (() => {
             }))
           : [],
         items: typeof parsed.items === 'object' && parsed.items ? parsed.items : {},
-        viewMode: typeof parsed.viewMode === 'string' ? parsed.viewMode : 'classic'
+        viewMode: parsed.viewMode === 'matrix' ? 'matrix' : 'classic'
       };
     }
   } catch (_) {}
@@ -51,6 +51,45 @@ function save() {
 
 function byId(id) {
   return document.getElementById(id);
+}
+
+function ensureImagePreviewModal() {
+  let modal = byId('imagePreviewModal');
+  if (modal) return modal;
+
+  modal = document.createElement('dialog');
+  modal.id = 'imagePreviewModal';
+  modal.className = 'modal-card image-preview-modal';
+  modal.innerHTML = `
+    <div class="modal-header">
+      <h2>Apercu image</h2>
+      <button type="button" class="modal-close" data-action="close-image-preview">x</button>
+    </div>
+    <div class="modal-body image-preview-body">
+      <img id="imagePreviewModalImg" class="image-preview-img" alt="Apercu" src="">
+    </div>
+  `;
+
+  modal.addEventListener('click', event => {
+    if (event.target === modal) modal.close();
+  });
+
+  modal.querySelector('[data-action="close-image-preview"]')?.addEventListener('click', () => {
+    modal.close();
+  });
+
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openImagePreview(src, alt = 'Apercu') {
+  if (!src) return;
+  const modal = ensureImagePreviewModal();
+  const img = byId('imagePreviewModalImg');
+  if (!img) return;
+  img.src = src;
+  img.alt = alt;
+  modal.showModal();
 }
 
 function escapeHtml(value) {
@@ -461,19 +500,15 @@ function updateToggleBtn() {
   if (state.viewMode === 'classic') {
     btn.textContent = 'Vue matrice';
     btn.title = 'Passer en affichage tableau roles x scenarios';
-  } else if (state.viewMode === 'matrix') {
-    btn.textContent = 'Vue fiche';
-    btn.title = 'Passer en affichage fiches de recette';
   } else {
     btn.textContent = 'Vue classique';
     btn.title = 'Passer en affichage liste par tests';
   }
 }
 
-// Bascule entre la vue classique, matrice et fiche.
+// Bascule entre la vue classique et matrice.
 function toggleView() {
   if (state.viewMode === 'classic') state.viewMode = 'matrix';
-  else if (state.viewMode === 'matrix') state.viewMode = 'card';
   else state.viewMode = 'classic';
   save();
   updateToggleBtn();
@@ -494,6 +529,8 @@ function renderMatrixView() {
     const r = (t.role || '').trim();
     if (r && !roleSet.has(r)) { roleSet.add(r); roles.push(r); }
   });
+  // Si aucun role n'est renseigne, on garde une seule colonne "vide".
+  if (!roles.length) roles.push('');
   roles.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
 
   const categories = [];
@@ -573,16 +610,13 @@ function renderMatrixView() {
       const tdSc = document.createElement('td');
       tdSc.className = 'matrix-scenario-cell';
       const scenarioTests = Object.values(testMap[cat][sc] || {});
-      const stepsText = [...new Set(scenarioTests.map(test => String(test.steps || '').trim()).filter(Boolean))].join(' | ');
+      const scenarioBaseTest = scenarioTests.find(test => ensureStepsData(test).length > 0) || scenarioTests[0];
+      const stepsHtml = scenarioBaseTest ? renderStepsWithImages(scenarioBaseTest) : '';
       const expectedText = [...new Set(scenarioTests.map(test => String(test.expected || '').trim()).filter(Boolean))].join(' | ');
-      const expectedScreenshots = scenarioTests
-        .flatMap(test => ensureExpectedScreenshots(test))
-        .slice(0, 3);
       tdSc.innerHTML = `
         <div class="matrix-scenario-title">${escapeHtml(sc)}</div>
-        ${stepsText ? `<div class="matrix-scenario-meta"><strong>Etapes:</strong> ${renderSteps(stepsText)}</div>` : ''}
+        ${stepsHtml ? `<div class="matrix-scenario-meta"><strong>Etapes:</strong> ${stepsHtml}</div>` : ''}
         ${expectedText ? `<div class="matrix-scenario-meta"><strong>Attendu:</strong> ${escapeHtml(expectedText)}</div>` : ''}
-        ${expectedScreenshots.length ? `<div class="matrix-shot-list">${expectedScreenshots.map((src, index) => `<img class="matrix-shot-thumb" src="${src}" alt="Capture attendu ${index + 1}">`).join('')}</div>` : ''}
       `;
       tr.appendChild(tdSc);
 
@@ -681,6 +715,14 @@ function renderMatrixView() {
 
   container.appendChild(topScroll);
   container.appendChild(wrap);
+
+  // Agrandissement au clic des images d'etapes dans la matrice.
+  wrap.addEventListener('click', event => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) return;
+    if (!target.classList.contains('step-image-thumb') && !target.classList.contains('matrix-shot-thumb')) return;
+    openImagePreview(target.src, target.alt || 'Apercu image');
+  });
 
   stats();
   applyFilters();
@@ -806,8 +848,6 @@ function renderCardView() {
 function renderTests() {
   if (state.viewMode === 'matrix') {
     renderMatrixView();
-  } else if (state.viewMode === 'card') {
-    renderCardView();
   } else {
     renderClassicView();
   }
@@ -875,22 +915,6 @@ function renderClassicView() {
         <div class="card-section">
           <div class="card-section-title">Resultat attendu</div>
           <div class="card-expected-text">${escapeHtml(test.expected)}</div>
-          <div class="expected-media">
-            <div class="small">Captures du resultat attendu (optionnel)</div>
-            <div class="expected-dropzone" tabindex="0" data-action="paste-expected">
-              <span class="step-paste-icon">🖼</span>
-              <span>Collez une image<br><small>Ctrl+V, glissez-deposez ou double-cliquez</small></span>
-            </div>
-            <input data-action="file-expected" type="file" accept="image/*" multiple hidden>
-            <div class="expected-gallery">
-              ${ensureExpectedScreenshots(test).map((src, shotIndex) => `
-                <div class="expected-thumb-card">
-                  <img class="expected-thumb" src="${src}" alt="Capture attendue ${shotIndex + 1}">
-                  <button type="button" data-action="remove-expected" data-shot-index="${shotIndex}">Supprimer</button>
-                </div>
-              `).join('')}
-            </div>
-          </div>
         </div>
 
         <!-- Section Observation + Preuve KO -->
@@ -937,12 +961,8 @@ function renderClassicView() {
       const fileInput = row.querySelector('.proof-file');
       const preview = row.querySelector('.proof-preview');
       const clearBtn = row.querySelector('.proof-clear');
-      const expectedPasteZone = row.querySelector('[data-action="paste-expected"]');
-      const expectedFileInput = row.querySelector('[data-action="file-expected"]');
-      const expectedRemoveBtns = row.querySelectorAll('[data-action="remove-expected"]');
 
       const openProofPicker = () => fileInput.click();
-      const openExpectedPicker = () => expectedFileInput.click();
 
       pasteZone.addEventListener('paste', async event => {
         const file = pickImageFileFromClipboard(event.clipboardData);
@@ -988,53 +1008,6 @@ function renderClassicView() {
         save();
         preview.src = '';
         preview.classList.remove('show');
-      });
-
-      expectedPasteZone.addEventListener('paste', async event => {
-        const file = pickImageFileFromClipboard(event.clipboardData);
-        if (!file) return;
-        event.preventDefault();
-        await storeExpectedScreenshot(test.id, file);
-        renderTests();
-      });
-
-      expectedPasteZone.addEventListener('click', () => expectedPasteZone.focus());
-      expectedPasteZone.addEventListener('dblclick', openExpectedPicker);
-      expectedPasteZone.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          openExpectedPicker();
-        }
-      });
-      expectedPasteZone.addEventListener('dragover', event => {
-        event.preventDefault();
-      });
-      expectedPasteZone.addEventListener('drop', async event => {
-        event.preventDefault();
-        const files = [...(event.dataTransfer?.files || [])].filter(file => file.type.startsWith('image/'));
-        if (!files.length) return;
-        for (const file of files) {
-          await storeExpectedScreenshot(test.id, file);
-        }
-        renderTests();
-      });
-
-      expectedFileInput.addEventListener('change', async event => {
-        const files = [...(event.target.files || [])].filter(file => file.type.startsWith('image/'));
-        if (!files.length) return;
-        for (const file of files) {
-          await storeExpectedScreenshot(test.id, file);
-        }
-        expectedFileInput.value = '';
-        renderTests();
-      });
-
-      expectedRemoveBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          const shotIndex = Number(btn.dataset.shotIndex);
-          removeExpectedScreenshot(test.id, shotIndex);
-          renderTests();
-        });
       });
 
       // Captures par étape
