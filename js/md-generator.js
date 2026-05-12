@@ -643,6 +643,62 @@ function normalizeHeader(value) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// Parse un CSV avec separateur ';' en respectant les guillemets echappes.
+function parseSemicolonCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+
+  const pushCell = () => {
+    row.push(cell);
+    cell = '';
+  };
+
+  const pushRow = () => {
+    if (!row.length) return;
+    rows.push(row);
+    row = [];
+  };
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (!inQuotes && ch === ';') {
+      pushCell();
+      continue;
+    }
+
+    if (!inQuotes && (ch === '\n' || ch === '\r')) {
+      if (ch === '\r' && text[i + 1] === '\n') i += 1;
+      pushCell();
+      pushRow();
+      continue;
+    }
+
+    cell += ch;
+  }
+
+  pushCell();
+  pushRow();
+
+  if (rows.length && rows[0].length) {
+    rows[0][0] = String(rows[0][0] || '').replace(/^\uFEFF/, '');
+  }
+
+  return rows;
+}
+
 function importRowsFromAoa(aoa) {
   if (aoa.length < 2) return;
 
@@ -655,16 +711,63 @@ function importRowsFromAoa(aoa) {
   const iExpected = headers.findIndex(h => h.includes('attendu') || h.includes('resultat'));
   const iLibPath = headers.findIndex(h => h.includes('bibliotheque') || h.includes('library'));
 
-  const imported = aoa.slice(1).map(r => ({
-    id: iId >= 0 ? String(r[iId] || '').trim() : '',
-    priority: normalizePriority(iPriority >= 0 ? String(r[iPriority] || '') : 'Moyenne'),
-    role: iRole >= 0 ? String(r[iRole] || '').trim() : '',
-    scenario: iScenario >= 0 ? String(r[iScenario] || '').trim() : '',
-    steps: iSteps >= 0 ? String(r[iSteps] || '').trim() : '',
-    stepsArray: [],
-    expected: iExpected >= 0 ? String(r[iExpected] || '').trim() : '',
-    testLibraryPath: iLibPath >= 0 ? String(r[iLibPath] || '').trim() : ''
-  })).filter(r => r.id || r.scenario || r.steps || r.expected);
+  const imported = [];
+  const byId = new Map();
+  let current = null;
+
+  const appendStep = (target, stepText) => {
+    const text = String(stepText || '').trim();
+    if (!text) return;
+    target.stepsArray = Array.isArray(target.stepsArray) ? target.stepsArray : [];
+    target.stepsArray.push({ text, image: null });
+    target.steps = stepsArrayToString(target.stepsArray);
+  };
+
+  aoa.slice(1).forEach(r => {
+    const id = iId >= 0 ? String(r[iId] || '').trim() : '';
+    const priority = normalizePriority(iPriority >= 0 ? String(r[iPriority] || '') : 'Moyenne');
+    const role = iRole >= 0 ? String(r[iRole] || '').trim() : '';
+    const scenario = iScenario >= 0 ? String(r[iScenario] || '').trim() : '';
+    const step = iSteps >= 0 ? String(r[iSteps] || '').trim() : '';
+    const expected = iExpected >= 0 ? String(r[iExpected] || '').trim() : '';
+    const testLibraryPath = iLibPath >= 0 ? String(r[iLibPath] || '').trim() : '';
+
+    if (!id && !scenario && !step && !expected && !role && !testLibraryPath) return;
+
+    if (id && byId.has(id)) {
+      current = byId.get(id);
+      if (role) current.role = role;
+      if (scenario && !current.scenario) current.scenario = scenario;
+      if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
+      if (expected && !current.expected) current.expected = expected;
+      appendStep(current, step);
+      return;
+    }
+
+    if (!id && current) {
+      if (role) current.role = role;
+      if (scenario && !current.scenario) current.scenario = scenario;
+      if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
+      if (expected && !current.expected) current.expected = expected;
+      appendStep(current, step);
+      return;
+    }
+
+    const test = {
+      id,
+      priority,
+      role,
+      scenario,
+      steps: '',
+      stepsArray: [],
+      expected,
+      testLibraryPath
+    };
+    appendStep(test, step);
+    imported.push(test);
+    current = test;
+    if (id) byId.set(id, test);
+  });
 
   if (!imported.length) return;
   state.rows = imported;
@@ -675,10 +778,19 @@ function importRowsFromAoa(aoa) {
 
 async function importExcelFile(file) {
   try {
-    const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, { type: 'array' });
-    const firstSheet = wb.SheetNames[0];
-    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet], { header: 1, defval: '' });
+    const lowerName = String(file?.name || '').toLowerCase();
+    let aoa = [];
+
+    if (lowerName.endsWith('.csv')) {
+      const text = await file.text();
+      aoa = parseSemicolonCsv(text);
+    } else {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const firstSheet = wb.SheetNames[0];
+      aoa = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet], { header: 1, defval: '' });
+    }
+
     importRowsFromAoa(aoa);
   } catch (_) {}
 }

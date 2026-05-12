@@ -1665,10 +1665,67 @@ function cellValue(row, index) {
   return String(row[index] ?? '').trim();
 }
 
+// Parse un CSV avec separateur ';' en gerant correctement les guillemets doubles.
+function parseSemicolonCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+
+  const pushCell = () => {
+    row.push(cell);
+    cell = '';
+  };
+
+  const pushRow = () => {
+    if (!row.length) return;
+    rows.push(row);
+    row = [];
+  };
+
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (!inQuotes && ch === ';') {
+      pushCell();
+      continue;
+    }
+
+    if (!inQuotes && (ch === '\n' || ch === '\r')) {
+      if (ch === '\r' && text[i + 1] === '\n') i += 1;
+      pushCell();
+      pushRow();
+      continue;
+    }
+
+    cell += ch;
+  }
+
+  pushCell();
+  pushRow();
+
+  if (rows.length && rows[0].length) {
+    rows[0][0] = String(rows[0][0] || '').replace(/^\uFEFF/, '');
+  }
+
+  return rows;
+}
+
 // Extrait une liste de tests depuis un tableau tabulaire (Excel ou CSV Jira).
 // Supporte les lignes de continuation pour les tests multi-etapes (format Jira).
 function extractTestsFromRows(rows, headerInfo) {
   const result = [];
+  const testsById = new Map();
   let currentTest = null;
 
   rows.slice(headerInfo.rowIndex + 1).forEach(row => {
@@ -1712,15 +1769,21 @@ function extractTestsFromRows(rows, headerInfo) {
       return;
     }
 
-    // Ligne avec même ID que le test courant → étape supplémentaire (format multi-lignes)
-    if (id && currentTest && id === currentTest.id && (step || expected || stepImageCell)) {
+    if (!id && !scenario && !step && !expected && !stepImageCell && !expectedScreensCell) return;
+
+    // Toute ligne portant un id de cas de test existant est fusionnee dans le meme test,
+    // meme si elle n'est pas consecutive dans le fichier.
+    if (id && testsById.has(id)) {
+      currentTest = testsById.get(id);
+      if (roleFromColumn) currentTest.role = roleFromColumn;
+      if (!currentTest.role && roleFromStep) currentTest.role = roleFromStep;
+      if (scenario && !currentTest.scenario) currentTest.scenario = scenario;
+      if (testLibraryPath && !currentTest.testLibraryPath) currentTest.testLibraryPath = testLibraryPath;
       if (cleanedStep || stepImages.some(Boolean)) appendStepsToCurrent(cleanedStep, stepImages);
       if (expected) currentTest.expected = expected;
       mergeExpectedScreens(expectedScreensCell);
       return;
     }
-
-    if (!id && !scenario && !step && !expected && !stepImageCell && !expectedScreensCell) return;
 
     const built = buildStepsDataFromTextAndImages(cleanedStep, stepImages);
     currentTest = {
@@ -1735,6 +1798,7 @@ function extractTestsFromRows(rows, headerInfo) {
       expectedScreenshots: parseExpectedScreensCell(expectedScreensCell)
     };
     result.push(currentTest);
+    if (id) testsById.set(id, currentTest);
   });
 
   return result;
@@ -1748,20 +1812,29 @@ async function importExcelFile(file) {
   }
 
   try {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: 'array' });
+    const lowerName = String(file?.name || '').toLowerCase();
+    const sources = [];
 
-    // Parcourt chaque feuille pour trouver celle avec des en-tetes compatibles
+    if (lowerName.endsWith('.csv')) {
+      const text = await file.text();
+      sources.push({ name: 'CSV', rows: parseSemicolonCsv(text) });
+    } else {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      workbook.SheetNames.forEach(sheetName => {
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        sources.push({ name: sheetName, rows });
+      });
+    }
+
+    // Parcourt chaque source pour trouver celle avec des en-tetes compatibles
     let importedTests = [];
-    for (const sheetName of workbook.SheetNames) {
-      const sheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-      const headerInfo = findHeaderRow(rows);
-
-      if (headerInfo) {
-        importedTests = extractTestsFromRows(rows, headerInfo);
-        if (importedTests.length > 0) break;
-      }
+    for (const source of sources) {
+      const headerInfo = findHeaderRow(source.rows);
+      if (!headerInfo) continue;
+      importedTests = extractTestsFromRows(source.rows, headerInfo);
+      if (importedTests.length > 0) break;
     }
 
     if (!importedTests.length) {
