@@ -621,7 +621,6 @@ async function exportExcel() {
         i === 0 ? r.id       : '',   // ID seulement sur la 1ere ligne
         i === 0 ? r.priority : '',
         i === 0 ? r.role     : '',
-        i === 0 ? r.role     : '',
         i === 0 ? r.scenario : '',
         step.text || '',
         i === 0 ? r.expected : '',   // Résultat attendu seulement sur la 1ere ligne
@@ -633,6 +632,17 @@ async function exportExcel() {
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   XLSX.utils.book_append_sheet(wb, ws, 'Tests');
+
+  const metaRows = [
+    ['Champ', 'Valeur'],
+    ['Projet', state.meta.project || ''],
+    ['Version', state.meta.version || ''],
+    ['Auteur', state.meta.author || ''],
+    ['Date cible', state.meta.date || '']
+  ];
+  const metaWs = XLSX.utils.aoa_to_sheet(metaRows);
+  XLSX.utils.book_append_sheet(wb, metaWs, 'Meta');
+
   XLSX.writeFile(wb, 'export_tests.xlsx');
 }
 
@@ -709,50 +719,24 @@ function importRowsFromAoa(aoa) {
   const iScenario = headers.findIndex(h => h.includes('scenario') || h.includes('resum'));
   const iSteps = headers.findIndex(h => h.includes('action') || h.includes('etape'));
   const iExpected = headers.findIndex(h => h.includes('attendu') || h.includes('resultat'));
+  const iStepImage = headers.findIndex(h => (h.includes('capture') || h.includes('image')) && (h.includes('etape') || h.includes('step') || h.includes('dataurl')));
   const iLibPath = headers.findIndex(h => h.includes('bibliotheque') || h.includes('library'));
 
   const imported = [];
   const byId = new Map();
   let current = null;
 
-  const appendStep = (target, stepText) => {
+  const appendStep = (target, stepText, stepImage) => {
     const text = String(stepText || '').trim();
-    if (!text) return;
+    const image = String(stepImage || '').trim();
+    const safeImage = image.startsWith('data:image/') ? image : null;
+    if (!text && !safeImage) return;
     target.stepsArray = Array.isArray(target.stepsArray) ? target.stepsArray : [];
-    target.stepsArray.push({ text, image: null });
+    target.stepsArray.push({ text, image: safeImage });
     target.steps = stepsArrayToString(target.stepsArray);
   };
 
-  aoa.slice(1).forEach(r => {
-    const id = iId >= 0 ? String(r[iId] || '').trim() : '';
-    const priority = normalizePriority(iPriority >= 0 ? String(r[iPriority] || '') : 'Moyenne');
-    const role = iRole >= 0 ? String(r[iRole] || '').trim() : '';
-    const scenario = iScenario >= 0 ? String(r[iScenario] || '').trim() : '';
-    const step = iSteps >= 0 ? String(r[iSteps] || '').trim() : '';
-    const expected = iExpected >= 0 ? String(r[iExpected] || '').trim() : '';
-    const testLibraryPath = iLibPath >= 0 ? String(r[iLibPath] || '').trim() : '';
-
-    if (!id && !scenario && !step && !expected && !role && !testLibraryPath) return;
-
-    if (id && byId.has(id)) {
-      current = byId.get(id);
-      if (role) current.role = role;
-      if (scenario && !current.scenario) current.scenario = scenario;
-      if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
-      if (expected && !current.expected) current.expected = expected;
-      appendStep(current, step);
-      return;
-    }
-
-    if (!id && current) {
-      if (role) current.role = role;
-      if (scenario && !current.scenario) current.scenario = scenario;
-      if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
-      if (expected && !current.expected) current.expected = expected;
-      appendStep(current, step);
-      return;
-    }
-
+  const createTest = ({ id, priority, role, scenario, expected, testLibraryPath, step, stepImage }) => {
     const test = {
       id,
       priority,
@@ -763,10 +747,47 @@ function importRowsFromAoa(aoa) {
       expected,
       testLibraryPath
     };
-    appendStep(test, step);
+    appendStep(test, step, stepImage);
     imported.push(test);
     current = test;
     if (id) byId.set(id, test);
+  };
+
+  aoa.slice(1).forEach(r => {
+    const id = iId >= 0 ? String(r[iId] || '').trim() : '';
+    const priorityRaw = iPriority >= 0 ? String(r[iPriority] || '').trim() : '';
+    const priority = normalizePriority(priorityRaw || 'Moyenne');
+    const role = iRole >= 0 ? String(r[iRole] || '').trim() : '';
+    const scenario = iScenario >= 0 ? String(r[iScenario] || '').trim() : '';
+    const step = iSteps >= 0 ? String(r[iSteps] || '').trim() : '';
+    const expected = iExpected >= 0 ? String(r[iExpected] || '').trim() : '';
+    const stepImage = iStepImage >= 0 ? String(r[iStepImage] || '').trim() : '';
+    const testLibraryPath = iLibPath >= 0 ? String(r[iLibPath] || '').trim() : '';
+    const hasAnchorWithoutId = !id && !!(scenario || role || expected || testLibraryPath || priorityRaw);
+    const isContinuationRow = !id && !hasAnchorWithoutId;
+
+    if (!id && !scenario && !step && !expected && !role && !testLibraryPath) return;
+
+    if (id && byId.has(id)) {
+      current = byId.get(id);
+      if (role) current.role = role;
+      if (scenario && !current.scenario) current.scenario = scenario;
+      if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
+      if (expected && !current.expected) current.expected = expected;
+      appendStep(current, step, stepImage);
+      return;
+    }
+
+    if (isContinuationRow && current) {
+      if (role) current.role = role;
+      if (scenario && !current.scenario) current.scenario = scenario;
+      if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
+      if (expected && !current.expected) current.expected = expected;
+      appendStep(current, step, stepImage);
+      return;
+    }
+
+    createTest({ id, priority, role, scenario, expected, testLibraryPath, step, stepImage });
   });
 
   if (!imported.length) return;
@@ -774,6 +795,47 @@ function importRowsFromAoa(aoa) {
   save();
   renderRows();
   renderStats();
+}
+
+function importMetaFromAoa(aoa) {
+  if (!Array.isArray(aoa) || aoa.length < 2) return false;
+  const headers = (aoa[0] || []).map(h => normalizeHeader(h));
+  if (headers.length < 2) return false;
+
+  const iKey = headers.findIndex(h => h.includes('champ') || h.includes('field') || h.includes('cle') || h.includes('key'));
+  const iValue = headers.findIndex(h => h.includes('valeur') || h.includes('value'));
+  if (iKey < 0 || iValue < 0) return false;
+
+  let changed = false;
+  aoa.slice(1).forEach(row => {
+    const rawKey = normalizeHeader(row[iKey]);
+    const value = String(row[iValue] || '').trim();
+    if (!rawKey) return;
+
+    let targetKey = '';
+    if (rawKey.includes('projet') || rawKey.includes('project')) targetKey = 'project';
+    else if (rawKey.includes('version')) targetKey = 'version';
+    else if (rawKey.includes('auteur') || rawKey.includes('author') || rawKey.includes('testeur')) targetKey = 'author';
+    else if (rawKey.includes('date')) targetKey = 'date';
+
+    if (!targetKey) return;
+    if (state.meta[targetKey] !== value) {
+      state.meta[targetKey] = value;
+      changed = true;
+    }
+  });
+
+  return changed;
+}
+
+function isLikelyTestSheet(aoa) {
+  if (!Array.isArray(aoa) || aoa.length === 0) return false;
+  const headers = (aoa[0] || []).map(h => normalizeHeader(h));
+  const hasId = headers.some(h => h.includes('id') || h.includes('identifi'));
+  const hasScenario = headers.some(h => h.includes('scenario') || h.includes('resum'));
+  const hasAction = headers.some(h => h.includes('action') || h.includes('etape'));
+  const hasExpected = headers.some(h => h.includes('attendu') || h.includes('resultat'));
+  return hasId && hasScenario && hasAction && hasExpected;
 }
 
 async function importExcelFile(file) {
@@ -784,14 +846,28 @@ async function importExcelFile(file) {
     if (lowerName.endsWith('.csv')) {
       const text = await file.text();
       aoa = parseSemicolonCsv(text);
+      importRowsFromAoa(aoa);
     } else {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array' });
-      const firstSheet = wb.SheetNames[0];
-      aoa = XLSX.utils.sheet_to_json(wb.Sheets[firstSheet], { header: 1, defval: '' });
-    }
+      const allSheets = wb.SheetNames.map(name => ({
+        name,
+        aoa: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' })
+      }));
 
-    importRowsFromAoa(aoa);
+      const testSheet = allSheets.find(s => isLikelyTestSheet(s.aoa)) || allSheets[0];
+      aoa = testSheet ? testSheet.aoa : [];
+      importRowsFromAoa(aoa);
+
+      let metaChanged = false;
+      allSheets.forEach(sheet => {
+        metaChanged = importMetaFromAoa(sheet.aoa) || metaChanged;
+      });
+      if (metaChanged) {
+        save();
+        hydrateMetaAndBusiness();
+      }
+    }
   } catch (_) {}
 }
 
