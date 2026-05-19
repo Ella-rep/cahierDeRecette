@@ -25,6 +25,8 @@
       <div class="jt-header-actions">
         <button id="importExcelBtn" type="button" class="jt-btn-outline">&#8679; Import Excel</button>
         <input id="importExcelInput" type="file" accept=".xlsx,.xls,.csv" hidden>
+        <button id="importPlaywrightBtn" type="button" class="jt-btn-outline">&#8679; Import Playwright</button>
+        <input id="importPlaywrightInput" type="file" accept=".ts,.js,.mjs,.cjs,.txt,.png,.jpg,.jpeg,.webp,.bmp" multiple hidden>
         <button id="downloadJiraCsvBtn" type="button" class="jt-btn-outline">&#8681; Export CSV Jira</button>
         <button id="downloadExcelBtn" type="button" class="jt-btn-outline">&#8681; Export Excel</button>
         <button id="addRowBtn" type="button" class="jt-btn-primary btn-primary">+ Ajouter un test</button>
@@ -69,6 +71,10 @@
         <div class="jt-config-field">
           <label class="jt-config-label">Date cible</label>
           <input id="projectDate" type="date" class="jt-config-input">
+        </div>
+        <div class="jt-config-field">
+          <label class="jt-config-label">Bibliothèque Xray</label>
+          <input id="xrayLibraryPath" type="text" class="jt-config-input" placeholder="Ex: Tests Admin">
         </div>
       </div>
       <div class="jt-config-actions">
