@@ -49,10 +49,12 @@ function save() {
   localStorage.setItem(STORE_KEY, JSON.stringify(state));
 }
 
+// Raccourci DOM pour getElementById
 function byId(id) {
   return document.getElementById(id);
 }
 
+// Cree ou recupere le modal d'aperçu image (utilisé pour les captures et étapes)
 function ensureImagePreviewModal() {
   let modal = byId('imagePreviewModal');
   if (modal) return modal;
@@ -82,6 +84,7 @@ function ensureImagePreviewModal() {
   return modal;
 }
 
+// Ouvre le modal d'aperçu image avec la source donnée
 function openImagePreview(src, alt = 'Apercu') {
   if (!src) return;
   const modal = ensureImagePreviewModal();
@@ -92,6 +95,7 @@ function openImagePreview(src, alt = 'Apercu') {
   modal.showModal();
 }
 
+// Echappe le HTML pour éviter les injections dans les champs libres
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -102,6 +106,7 @@ function escapeHtml(value) {
 }
 
 // Derive un groupe de tests depuis le prefixe d identifiant.
+// Déduit un groupe de tests à partir du préfixe d'identifiant (ex: TC-001 → TC)
 function normalizeGroupFromId(id) {
   const raw = String(id || 'GEN').trim();
   if (!raw) return 'GEN';
@@ -110,6 +115,7 @@ function normalizeGroupFromId(id) {
 }
 
 // Normalise un texte pour comparaison, supprimant accents, casse, et caracteres speciaux.
+// Normalise un texte pour la recherche/filtres (suppression accents, casse, etc.)
 function normalizeText(value) {
   return String(value ?? '')
     .normalize('NFD')
@@ -123,6 +129,7 @@ function normalizeText(value) {
 }
 
 // Rend les etapes d un test sous forme de liste HTML numerotee si multi-lignes, sinon texte simple.
+// Rend les étapes d'un test sous forme de liste HTML numérotée ou texte simple
 function renderSteps(stepsText) {
   const lines = String(stepsText || '')
     .split(/\r?\n/)
@@ -134,6 +141,7 @@ function renderSteps(stepsText) {
 }
 
 // Convertit le texte steps en stepsData (tableau d'objets avec texte et image).
+// Convertit le texte steps en stepsData (tableau d'objets avec texte et image)
 function stepsTextToData(stepsText) {
   if (!stepsText) return [];
   return stepsText
@@ -144,6 +152,7 @@ function stepsTextToData(stepsText) {
 }
 
 // Retourne stepsData en assurant la structure correcte.
+// Retourne stepsData en assurant la structure correcte (stepsArray, stepsData, steps)
 // Vérifie d'abord stepsArray (nouveau format du générateur), puis stepsData, puis steps (string)
 function ensureStepsData(test) {
   if (!test) return [];
@@ -161,15 +170,18 @@ function ensureStepsData(test) {
 }
 
 // Affiche les etapes avec images pour la campagne de recette.
+// Affiche les étapes avec images pour la campagne de recette (vue classique/matrice)
 function renderStepsWithImages(test) {
   const stepsData = ensureStepsData(test);
   if (!stepsData.length) return '';
   
   if (stepsData.length === 1 && !stepsData[0].image) {
+  // Normalise une priorité importée (Jira/Excel) en P1/P2/P3
     return escapeHtml(stepsData[0].text);
   }
   
   let html = '<div class="steps-with-images">';
+  // Extrait un rôle depuis une ligne de type "Role: Admin" (colonne Action Jira)
   stepsData.forEach((step, i) => {
     html += '<div class="step-entry">';
     html += `<div class="step-header">`;
@@ -201,6 +213,7 @@ function normalizePriority(value) {
 }
 
 // Extrait un role depuis une ligne de type "Role: Admin" (colonne Action Jira).
+// Hydrate les champs métier (objectif, périmètre, etc.) depuis l'état
 function extractRoleMarker(value) {
   const text = String(value ?? '').trim();
   const match = text.match(/^(?:role|profil)\s*[:=-]\s*(.+)$/i);
@@ -208,6 +221,7 @@ function extractRoleMarker(value) {
 }
 
 
+// Crée la structure de saisie résultat/commentaire/capture d'un test si absente
 // ---------- Synchronisation UI / etat ----------
 function hydrateBusinessFields() {
   byId('bizObjectif').value = state.business.objectif || '';
@@ -219,17 +233,20 @@ function hydrateBusinessFields() {
 }
 
 // Cree au besoin la structure de saisie (resultat/commentaire/capture) d un test.
+// Retourne le test correspondant à un id, ou null si absent
 function ensureItem(id) {
   state.items[id] = state.items[id] || { result: '', comment: '' };
   return state.items[id];
 }
 
 // Retourne le test correspondant a un id, ou null si absent.
+// Garantit que la liste de captures d'attendu est toujours un tableau propre
 function findTestById(id) {
   return state.tests.find(test => test.id === id) || null;
 }
 
 // Garantit que la liste de captures d attendu est toujours un tableau propre.
+// Transforme un fichier image en Data URL pour affichage/stockage local
 function ensureExpectedScreenshots(test) {
   if (!test) return [];
   if (!Array.isArray(test.expectedScreenshots)) {
@@ -241,6 +258,7 @@ function ensureExpectedScreenshots(test) {
 }
 
 // Transforme un fichier image en Data URL pour affichage/stockage local.
+// Compresse une image avant stockage pour limiter la taille en localStorage
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -251,6 +269,7 @@ function fileToDataUrl(file) {
 }
 
 // Compresse une image avant stockage pour limiter la taille en localStorage.
+// Convertit un File (tout format: PNG, JPEG, BMP, WebP...) en data URL JPEG compressé
 function compressImage(dataUrl, mimeType = 'image/jpeg', quality = 0.82, maxSize = 680) {
   return new Promise(resolve => {
     const img = new Image();
@@ -268,11 +287,13 @@ function compressImage(dataUrl, mimeType = 'image/jpeg', quality = 0.82, maxSize
       resolve(canvas.toDataURL(mimeType, quality));
     };
     img.onerror = () => resolve(dataUrl);
+    // Extrait l'image la plus utilisable d'un clipboardData (préférence PNG/JPEG)
     img.src = dataUrl;
   });
 }
 
 // Convertit un File (tout format: PNG, JPEG, BMP, WebP...) en data URL JPEG
+// Stocke la capture d'un test KO après compression
 // via createImageBitmap qui supporte les BMP nativement, contrairement a canvas+dataUrl.
 async function fileToValidJpegDataUrl(file) {
   const MAX = 680;
@@ -297,6 +318,7 @@ async function fileToValidJpegDataUrl(file) {
     return null;
   }
 }
+  // Ajoute une capture illustrant l'attendu fonctionnel d'un test
 
 // Extrait l'image la plus utilisable d'un clipboardData (prefere PNG/JPEG au BMP).
 function pickImageFileFromClipboard(clipboardData) {
@@ -312,6 +334,7 @@ function pickImageFileFromClipboard(clipboardData) {
 }
 
 // Stocke la capture d un test KO apres compression.
+// Supprime une capture d'attendu selon son index
 async function storeCapture(id, file) {
   if (!file?.type?.startsWith('image/')) return;
   try {
@@ -324,6 +347,7 @@ async function storeCapture(id, file) {
 }
 
 // Ajoute une capture illustrant l attendu fonctionnel d un test.
+// Retourne le tableau de captures par étape pour un test (crée si absent)
 async function storeExpectedScreenshot(id, file) {
   if (!file?.type?.startsWith('image/')) return;
   const test = findTestById(id);
@@ -338,6 +362,7 @@ async function storeExpectedScreenshot(id, file) {
 }
 
 // Supprime une capture d attendu selon son index.
+// Stocke une capture pour une étape spécifique (avec compression)
 function removeExpectedScreenshot(id, index) {
   const test = findTestById(id);
   if (!test) return;
@@ -348,6 +373,7 @@ function removeExpectedScreenshot(id, index) {
 }
 
 // ─── Captures d'exécution par étape ───────────────────────────────────────────
+// Supprime la capture d'une étape spécifique
 
 // Retourne le tableau de captures par étape pour un test (crée si absent).
 function getStepCaptures(testId) {
@@ -357,6 +383,7 @@ function getStepCaptures(testId) {
 }
 
 // Stocke une capture pour une étape spécifique (avec compression).
+// Construit le HTML des étapes avec zone de capture par étape (vue exécution)
 async function storeStepCapture(testId, stepIndex, file) {
   if (!file?.type?.startsWith('image/')) return;
   try {
@@ -369,6 +396,7 @@ async function storeStepCapture(testId, stepIndex, file) {
 }
 
 // Supprime la capture d'une étape spécifique.
+// Rehydrate les captures attendu depuis une cellule Excel exportée
 function removeStepCapture(testId, stepIndex) {
   const captures = getStepCaptures(testId);
   captures[stepIndex] = null;
@@ -376,12 +404,14 @@ function removeStepCapture(testId, stepIndex) {
 }
 
 // Construit le HTML des étapes avec zone de capture par étape (vue exécution).
+// Rehydrate les images d'étapes depuis une cellule Excel exportée
 function buildStepsWithCaptureHtml(test) {
   const stepsData = ensureStepsData(test);
   const stepCaptures = getStepCaptures(test.id);
   if (!stepsData.length) return '<div class="card-empty-hint">Aucune étape définie</div>';
 
   let html = '<div class="steps-list">';
+// Construit steps + stepsData depuis un texte d'étapes et une liste d'images optionnelles
   stepsData.forEach((step, i) => {
     const captureUrl = stepCaptures[i] || '';
     html += `<div class="step-card">
@@ -395,10 +425,12 @@ function buildStepsWithCaptureHtml(test) {
       <div class="step-card-body">`;
     
     if (step.image) {
+    // Met à jour les KPI visibles (total/OK/KO/NA/taux)
       html += `<div class="step-image-zone"><img class="step-image-preview" src="${step.image}" alt="Image etape ${i + 1}"></div>`;
     }
     
     if (captureUrl) {
+    // Détecte automatiquement si la source correspond à une matrice rôles x scénarios
       html += `<div class="step-image-zone"><img class="step-capture-preview" src="${captureUrl}" alt="Capture etape ${i + 1}">
       <div class="step-image-actions">
         <button type="button" class="step-exec-remove" data-step-index="${i}">Supprimer capture</button>
@@ -412,6 +444,7 @@ function buildStepsWithCaptureHtml(test) {
     }
     
     html += `</div>
+    // Met à jour le texte du bouton de bascule de vue (classique/matrice)
     </div>`;
   });
   html += '</div>';
@@ -419,6 +452,7 @@ function buildStepsWithCaptureHtml(test) {
 }
 
 // Rehydrate les captures attendu depuis une cellule Excel exportee.
+// Bascule entre la vue classique et matrice
 function parseExpectedScreensCell(value) {
   const raw = String(value ?? '').trim();
   if (!raw) return [];
@@ -429,6 +463,7 @@ function parseExpectedScreensCell(value) {
 }
 
 // Rehydrate les images d'etapes depuis une cellule Excel exportee.
+// Rend un tableau scénarios x rôles avec édition des statuts et commentaires (vue matrice)
 function parseStepImagesCell(value) {
   const raw = String(value ?? '');
   if (!raw.trim()) return [];
@@ -439,6 +474,7 @@ function parseStepImagesCell(value) {
 }
 
 // Construit steps + stepsData depuis un texte d'etapes et une liste d'images optionnelles.
+// Rend la vue fiche (format recette métier, groupée par bibliothèque)
 function buildStepsDataFromTextAndImages(stepsText, stepImages = []) {
   const lines = String(stepsText || '').split(/\r?\n/).map(line => line.trim()).filter(Boolean);
   const stepsData = lines.map((text, index) => ({ text, image: stepImages[index] || null }));
@@ -447,9 +483,11 @@ function buildStepsDataFromTextAndImages(stepsText, stepImages = []) {
     stepsData
   };
 }
+  // Point d'entrée unique de rendu: route vers la vue active (classique/matrice)
 
 
 // Met a jour les KPI visibles (total/OK/KO/NA/taux).
+// Rend la vue historique en lignes de tests (vue classique)
 function stats() {
   const total = state.tests.length;
   let ok = 0;
@@ -463,9 +501,11 @@ function stats() {
   });
 
   const done = ok + ko + na;
+// Applique les filtres de recherche/priorité/résultat sur la liste affichée
   const rate = done ? Math.round((ok / done) * 100) : 0;
 
   byId('sTotal').textContent = String(total);
+// Synchronise les champs meta (projet, version, etc.) depuis l'UI vers l'état
   byId('sOk').textContent = String(ok);
   byId('sKo').textContent = String(ko);
   byId('sNa').textContent = String(na);
@@ -473,6 +513,7 @@ function stats() {
 }
 
 // Detecte automatiquement si la source correspond a une matrice roles x scenarios.
+// Formate les lignes pour l'export Word/Excel (regroupe, nettoie, etc.)
 function detectMatrixStructure(tests) {
   if (!tests.length) return null;
   const roles = [];
@@ -494,6 +535,7 @@ function detectMatrixStructure(tests) {
 }
 
 // Met a jour le texte du bouton de bascule de vue.
+// Calcule le résumé de campagne (KPI, taux, etc.)
 function updateToggleBtn() {
   const btn = byId('toggleViewBtn');
   if (!btn) return;
@@ -505,6 +547,7 @@ function updateToggleBtn() {
     btn.title = 'Passer en affichage liste par tests';
   }
 }
+  // Télécharge un fichier texte (Word, CSV, etc.) avec le bon type MIME
 
 // Bascule entre la vue classique et matrice.
 function toggleView() {
@@ -516,6 +559,7 @@ function toggleView() {
 }
 
 // ---------- Rendu de la vue matrice ----------
+// Prépare la table d'export Excel pour la vue matrice
 // Rend un tableau scenarios x roles avec edition des statuts et commentaires.
 function renderMatrixView() {
   const container = byId('rowsContainer');
@@ -524,6 +568,7 @@ function renderMatrixView() {
   if (!tests.length) { stats(); return; }
 
   const roles = [];
+// Prépare les lignes d'export Excel pour la vue matrice
   const roleSet = new Set();
   tests.forEach(t => {
     const r = (t.role || '').trim();
@@ -534,11 +579,13 @@ function renderMatrixView() {
   roles.sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
 
   const categories = [];
+// Exporte la campagne en Excel (vue classique ou matrice)
   const catSet = new Set();
   const testMap = {};
   const scenarioOrder = {};
 
   tests.forEach(t => {
+// Exporte la campagne en Word (vue classique)
     const cat = (t.category || t.group || 'General').trim();
     const sc = (t.scenario || '').trim();
     const role = (t.role || '').trim();
@@ -556,11 +603,13 @@ function renderMatrixView() {
   });
 
   const totalCols = 1 + roles.length * 2;
+// Détecte la ligne d'en-tête dans un tableau importé (alias tolérants)
 
   const table = document.createElement('table');
   table.className = 'matrix-table';
 
   const thead = document.createElement('thead');
+// Lit une cellule de façon défensive (index invalide → chaîne vide)
   const headerRow1 = document.createElement('tr');
   const thSc = document.createElement('th');
   thSc.className = 'matrix-scenario-header';
@@ -577,6 +626,7 @@ function renderMatrixView() {
   thead.appendChild(headerRow1);
 
   const headerRow2 = document.createElement('tr');
+// Parse un CSV ';' avec support des guillemets et des sauts de ligne en cellule
   roles.forEach(() => {
     const thS = document.createElement('th');
     thS.className = 'matrix-sub-header-cell';
@@ -591,6 +641,7 @@ function renderMatrixView() {
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
+// Extrait les tests depuis les lignes importées et la mapping d'en-tête
 
   categories.forEach(cat => {
     const sectionRow = document.createElement('tr');
@@ -602,12 +653,14 @@ function renderMatrixView() {
     tbody.appendChild(sectionRow);
 
     scenarioOrder[cat].forEach(sc => {
+// Importe un fichier Excel/CSV et hydrate l'état campagne
       const rowTestIds = [];
       const tr = document.createElement('tr');
       tr.className = 'matrix-row';
       tr.dataset.search = sc.toLowerCase();
 
       const tdSc = document.createElement('td');
+// Hydrate l'UI depuis l'état (meta, business, tests)
       tdSc.className = 'matrix-scenario-cell';
       const scenarioTests = Object.values(testMap[cat][sc] || {});
       const scenarioBaseTest = scenarioTests.find(test => ensureStepsData(test).length > 0) || scenarioTests[0];

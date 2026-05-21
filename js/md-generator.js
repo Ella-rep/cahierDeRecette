@@ -894,6 +894,7 @@ function decodeEscapedString(value) {
   return out;
 }
 
+// Lit une chaine quotee (" ' `) a partir d'un index et retourne sa valeur decodee.
 function readQuotedString(text, startIndex = 0) {
   const src = String(text || '');
   let start = -1;
@@ -932,6 +933,7 @@ function readQuotedString(text, startIndex = 0) {
   return { quote, raw, value: decodeEscapedString(raw), start, end: src.length };
 }
 
+// Extrait toutes les chaines quotees d'un bloc de texte (arguments JS, labels, etc.).
 function extractQuotedLiterals(text) {
   const src = String(text || '');
   const values = [];
@@ -945,6 +947,7 @@ function extractQuotedLiterals(text) {
   return values;
 }
 
+// Parse le premier argument quote d'un appel de fonction.
 function parseQuotedArg(text) {
   const token = readQuotedString(text, 0);
   return String(token?.value || '').trim();
@@ -1183,6 +1186,7 @@ function takeNextUnusedImage(imageContext, usedImages) {
   return null;
 }
 
+// Convertit un bloc de lignes Playwright en etapes nommees via test.step().
 function extractNamedTestSteps(lines) {
   const namedSteps = [];
 
@@ -1218,6 +1222,7 @@ function extractNamedTestSteps(lines) {
   return namedSteps;
 }
 
+// Detecte les wrappers custom (runStep-like) et en extrait les etapes nommees.
 function extractNamedRunSteps(lines) {
   const namedSteps = [];
 
@@ -1276,6 +1281,7 @@ function extractNamedRunSteps(lines) {
   return namedSteps;
 }
 
+// Fallback permissif quand la structure runStep est moins stricte (regex globale).
 function extractNamedRunStepsLoose(lines) {
   const namedSteps = [];
   const content = (Array.isArray(lines) ? lines : []).join('\n');
@@ -1296,6 +1302,7 @@ function extractNamedRunStepsLoose(lines) {
   return namedSteps;
 }
 
+// Recupere un attendu explicite (const attendu = "...") quand il existe dans le bloc.
 function extractExpectedFromLines(lines) {
   const content = (Array.isArray(lines) ? lines : []).join('\n');
 
@@ -1310,6 +1317,7 @@ function extractExpectedFromLines(lines) {
   return [];
 }
 
+// Supprime les doublons text+image pour eviter les repetitions a l'import.
 function dedupeStepsArray(stepsArray) {
   const result = [];
   const seen = new Set();
@@ -1325,6 +1333,7 @@ function dedupeStepsArray(stepsArray) {
   return result;
 }
 
+// Associe une image a une etape a partir d'un screenshot() ou d'un fallback d'images disponibles.
 function resolveStepImage(stepLines, imageContext, usedImages) {
   if (!Array.isArray(stepLines) || !stepLines.length) return null;
 
@@ -1348,6 +1357,7 @@ function resolveStepImage(stepLines, imageContext, usedImages) {
   return null;
 }
 
+// Orchestrateur principal: construit une ligne de test a partir d'un scenario Playwright.
 function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSONAR - orchestrates multiple import strategies
   const stepsArray = [];
   const expected = extractExpectedFromLines(lines);
@@ -1451,6 +1461,7 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
   };
 }
 
+// Extrait les blocs test(...) d'un fichier Playwright avec suivi de profondeur d'accolades.
 function extractPlaywrightTests(text) {
   const lines = String(text || '').split(/\r?\n/);
   const tests = [];
@@ -1491,6 +1502,7 @@ function extractPlaywrightTests(text) {
   return tests;
 }
 
+// Pipeline d'import texte Playwright -> lignes du generateur (+ stats de mode de parsing).
 async function importRowsFromPlaywrightText(text, imageDataUrlByName = new Map()) {
   const imageContext = imageDataUrlByName?.byName ? imageDataUrlByName : createEmptyImageContext();
   const tests = extractPlaywrightTests(text);
@@ -1559,6 +1571,7 @@ async function importRowsFromPlaywrightText(text, imageDataUrlByName = new Map()
   };
 }
 
+// Importe un lot de fichiers Playwright et associe les images correspondantes par prefixe de nom.
 async function importPlaywrightFiles(fileList) {
   const files = Array.from(fileList || []).filter(Boolean);
   if (!files.length) return;
@@ -1632,6 +1645,7 @@ async function importPlaywrightFiles(fileList) {
   );
 }
 
+// Route d'import unique (csv/xlsx) avec detection auto feuille de tests + meta.
 async function importExcelFile(file) {
   try {
     const lowerName = String(file?.name || '').toLowerCase();

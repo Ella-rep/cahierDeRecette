@@ -2,6 +2,7 @@ const STORE_KEY = 'jira-ticket-generator-v1';
 
 const defaultHeaders = ['Type de ticket', 'Resume', 'Description', 'Priorite', 'Personne Assignee'];
 
+// Construit une ligne Jira par defaut utilisable dans l'editeur.
 function createEmptyRow() {
   return {
     issueType: 'User Story',
@@ -97,6 +98,7 @@ function normalizeText(value) {
     .trim();
 }
 
+// Detecte la ligne d'en-tete dans un tableau metier en se basant sur des alias tolerants.
 function findInternalHeaderRow(rows) {
   const aliases = {
     issueType: ['type de ticket', 'issuetype', 'type ticket', 'type'],
@@ -136,11 +138,13 @@ function findInternalHeaderRow(rows) {
   return null;
 }
 
+// Lit une cellule de facon defensive (index invalide -> chaine vide).
 function cellValue(row, index) {
   if (!row || index < 0) return '';
   return String(row[index] ?? '').trim();
 }
 
+// Construit une description Jira complete a partir d'un format metier partiel.
 function buildJiraDescriptionFromInternal(data) {
   if (data.description) return data.description;
 
@@ -163,6 +167,7 @@ function buildJiraDescriptionFromInternal(data) {
   return lines.join('\n').trim();
 }
 
+// Convertit les lignes metier detectees vers le modele cible Jira (1 ligne = 1 ticket).
 function mapInternalRowsToJira(rows, headerInfo) {
   const converted = [];
 
@@ -197,6 +202,7 @@ function mapInternalRowsToJira(rows, headerInfo) {
   return converted;
 }
 
+// Importe un xlsx metier, detecte la meilleure feuille et fusionne avec les tickets deja presents.
 async function importInternalExcel(file) {
   if (typeof XLSX === 'undefined') {
     setStatus('La librairie Excel n est pas disponible.', true);
@@ -242,6 +248,7 @@ async function importInternalExcel(file) {
   }
 }
 
+// Parse un CSV ';' avec support des guillemets et des sauts de ligne en cellule.
 function parseSemicolonCsv(text) {
   const rows = [];
   let row = [];
@@ -290,6 +297,7 @@ function parseSemicolonCsv(text) {
   return rows;
 }
 
+// Mappe le template CSV Jira vers le modele interne d'edition.
 function mapRowsFromTemplate(csvRows) {
   if (!csvRows.length) return [];
   const headers = csvRows[0].map(cell => String(cell || '').trim());
@@ -321,12 +329,14 @@ function mapRowsFromTemplate(csvRows) {
     .filter(row => row.summary || row.description);
 }
 
+// Synchronise les champs de configuration (nom de fichier, assignee, priorite) depuis l'etat.
 function hydrateConfig() {
   byId('fileName').value = state.fileName || 'jira-import-user-story';
   byId('defaultAssignee').value = state.defaultAssignee || '';
   byId('defaultPriority').value = normalizePriority(state.defaultPriority || 'Moyenne');
 }
 
+// Persiste la configuration globale en lisant les controles de formulaire.
 function syncConfig() {
   state.fileName = byId('fileName').value.trim() || 'jira-import-user-story';
   state.defaultAssignee = byId('defaultAssignee').value.trim();
@@ -334,6 +344,7 @@ function syncConfig() {
   save();
 }
 
+// Met a jour une ligne de ticket par patch immutable pour conserver un flux simple.
 function updateRow(index, patch) {
   state.rows[index] = { ...state.rows[index], ...patch };
   save();
@@ -354,6 +365,7 @@ function prioBadgeClass(priority) {
   return 'jt-badge-moyenne';
 }
 
+// Recalcule les KPI visibles (total / types de tickets).
 function renderStats() {
   const total = state.rows.length;
   const us = state.rows.filter(r => normalizeIssueType(r.issueType) === 'User Story').length;
@@ -369,6 +381,7 @@ function renderStats() {
   if (taskEl) taskEl.textContent = task;
 }
 
+// Rend l'editeur de tickets (cards) et branche les events de modification/duplication/suppression.
 function renderRows() {
   const container = byId('rowsBuilder');
   container.innerHTML = '';
@@ -457,6 +470,7 @@ function renderRows() {
   renderStats();
 }
 
+// Normalise les lignes avant export (types/priorites/valeurs vides).
 function normalizedExportRows() {
   const rows = state.rows
     .map(row => ({
@@ -471,6 +485,7 @@ function normalizedExportRows() {
   return rows;
 }
 
+// Prepare la structure AOA attendue par SheetJS pour les exports Excel/CSV.
 function buildAoAForExport() {
   const rows = normalizedExportRows();
   const aoa = [[...defaultHeaders]];
@@ -488,6 +503,7 @@ function buildAoAForExport() {
   return aoa;
 }
 
+// Exporte en xlsx avec en-tetes Jira standard.
 function exportExcel() {
   if (typeof XLSX === 'undefined') {
     setStatus('La librairie Excel n est pas disponible.', true);
@@ -509,6 +525,7 @@ function exportExcel() {
   setStatus(`${aoa.length - 1} ticket(s) exporte(s) au format Excel.`);
 }
 
+// Echappe une cellule CSV uniquement quand necessaire.
 function csvCell(value) {
   const text = String(value ?? '');
   if (text.includes('"') || text.includes(';') || text.includes('\n') || text.includes('\r')) {
@@ -517,6 +534,7 @@ function csvCell(value) {
   return text;
 }
 
+// Exporte en CSV ';' avec BOM UTF-8 pour une bonne ouverture dans Excel.
 function exportCsv() {
   const aoa = buildAoAForExport();
   if (aoa.length === 1) {
@@ -540,6 +558,7 @@ function exportCsv() {
   setStatus(`${aoa.length - 1} ticket(s) exporte(s) au format CSV.`);
 }
 
+// Importe un template CSV Jira deja structure.
 async function importTemplateCsv(file) {
   const text = await file.text();
   const csvRows = parseSemicolonCsv(text);
@@ -561,6 +580,7 @@ async function importTemplateCsv(file) {
   setStatus(`${importedRows.length} ticket(s) charges depuis le template CSV.`);
 }
 
+// Ajoute rapidement des tickets de demonstration pour amorcer l'edition.
 function addSampleRows() {
   state.rows.push(
     {

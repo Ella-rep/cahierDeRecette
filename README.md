@@ -1,7 +1,7 @@
 ﻿# Campagne Recette Generator
 
 Outil web statique pour preparer et executer des campagnes de recette fonctionnelle.
-Le projet fournit deux interfaces complementaires :
+Le projet fournit trois interfaces complementaires :
 
 - preparation des cas de test avec **gestion des etapes individuelles et images**
 - execution de campagne avec qualification OK/KO/NA et **affichage des etapes avec images**
@@ -34,16 +34,22 @@ cahier-recette_generator/
 |- jira-ticket-generator.html
 |- jira-import-test-template.csv
 |- jira-import-user-story-template.csv
-|- ppi_cahier.md
-|- xper_cahier.md
 |- README.md
 |- css/
+|  |- base.css
+|  |- components.css
+|  |- footer.css
+|  |- header.css
 |  `- styles.css
 `- js/
   |- create-jira-excel.js
-   |- md-generator.js
   |- jira-ticket-generator.js
-   `- recette-generator.js
+  |- jira-ticket-page-init.js
+  |- jira-xray-generator-page-init.js
+  |- md-generator.js
+  |- navbar.js
+  |- recette-generator.js
+  `- recette-generator.js.bak
 ```
 
 ## Interfaces
@@ -60,6 +66,7 @@ Fonctionnalites principales :
 
 - saisie manuelle des cas (ID, priorite, role, scenario, etapes avec images, attendu, **chemin bibliotheque Xray**)
 - import Excel/CSV avec detection d en-tetes tolerante (alias metier/Jira)
+- import Playwright (fichiers spec + captures) avec reconstruction des etapes
 - **upload d images par etape** : drag-drop, clic fichier, ou Ctrl+V (paste)
   - Support complet des formats : PNG, JPEG, WebP, BMP
   - **Compression automatique** : JPEG 0.82 qualite, max 680px
@@ -71,6 +78,13 @@ Fonctionnalites principales :
 
 Note : les priorites Jira `Haute/Moyenne/Basse` sont normalisees en `P1/P2/P3`.
 Les images sont stockees en base64 dans le stepsArray pour persistence locale.
+
+Import Playwright (detail) :
+
+- detection des blocs `test(...)`
+- support des patterns `test.step(...)`, wrappers `runStep(...)` et fallback ligne par ligne
+- association des captures via le nom des fichiers `*.spec-<index>-*.jpg|png|webp`
+- generation automatique d IDs `PW-001`, `PW-002`, ...
 
 ### 2) Execution de campagne
 
@@ -151,12 +165,17 @@ Depuis le **Générateur Excel Jira** :
 - **Excel** (`.xlsx`) pret pour import en masse dans Jira
 - **CSV** (`.csv`) optionnel
 
+Depuis le flux **Import Playwright** du generateur :
+
+- **Import multi-fichiers** (`.spec.ts`, `.spec.js`, `.js`, `.ts`, `.txt`) + images d'ecran associees
+
 ## Stockage local
 
 Les donnees sont conservees dans le navigateur :
 
 - generateur : `generateur-modele-md-v1`
 - executeur : `jira-xray-generator-v1`
+- generateur Jira : `jira-ticket-generator-v1`
 
 Format des donnees du generateur :
 ```json
@@ -218,6 +237,7 @@ Aucune installation applicative n est requise.
 - ouvrir `index.html` dans un navigateur moderne
 - ou ouvrir directement `jira-xray-generator.html` si besoin
 - ouvrir `campagne-recette.html` pour la phase d execution
+- ouvrir `jira-ticket-generator.html` pour preparer l import Jira
 
 Dependance front :
 
@@ -238,10 +258,22 @@ Le script cree : `jira-import-template.xlsx`.
 
 ## Exemples inclus
 
-- `xper_cahier.md`
-- `ppi_cahier.md`
 - `jira-import-test-template.csv`
 - `jira-import-user-story-template.csv`
+
+## Maintenance JS
+
+Les fonctions logiques majeures sont maintenant commentees dans les scripts suivants :
+
+- `js/md-generator.js` : import Excel/CSV, parser Playwright, association des captures
+- `js/recette-generator.js` : execution de campagne, vues classique/matrice, exports
+- `js/jira-ticket-generator.js` : mapping metier -> Jira, import/export CSV/XLSX
+
+Objectif de ces commentaires :
+
+- clarifier la logique metier sans modifier le comportement
+- faciliter les evolutions (alias de colonnes, parsing, formats d export)
+- reduire le risque de regression lors des refactors
 
 ## Ameliorations recentes
 
