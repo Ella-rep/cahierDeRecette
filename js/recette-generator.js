@@ -443,9 +443,6 @@ function buildStepsWithCaptureHtml(test) {
       </div>`;
     }
     
-    html += `</div>
-    // Met à jour le texte du bouton de bascule de vue (classique/matrice)
-    </div>`;
   });
   html += '</div>';
   return html;
