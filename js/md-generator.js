@@ -98,13 +98,18 @@ function renderStats() {
 
 function ensureStepsArray(row) {
   if (Array.isArray(row.stepsArray) && row.stepsArray.length > 0) {
+    row.stepsArray = row.stepsArray.map(step => ({
+      text: String(step?.text || '').trim(),
+      expected: String(step?.expected || '').trim(),
+      image: step?.image || null
+    }));
     return row.stepsArray;
   }
   if (row.steps && typeof row.steps === 'string') {
     row.stepsArray = row.steps
       .split('\n')
       .filter(s => s.trim())
-      .map(text => ({ text: text.trim(), image: null }));
+      .map(text => ({ text: text.trim(), expected: '', image: null }));
     return row.stepsArray;
   }
   return [];
@@ -223,7 +228,7 @@ function renderRows() {
     const addStepBtn = rowCard.querySelector(`[data-add-step="${index}"]`);
     if (addStepBtn) {
       addStepBtn.addEventListener('click', () => {
-        state.rows[index].stepsArray.push({ text: '', image: null });
+        state.rows[index].stepsArray.push({ text: '', expected: '', image: null });
         state.rows[index].steps = stepsArrayToString(state.rows[index].stepsArray);
         save();
         renderStepsInEditor(index, rowCard);
@@ -249,6 +254,7 @@ function renderStepsInEditor(rowIndex, container) {
     stepCard.className = 'step-card';
     
     const stepText = escapeHtml(step.text || '');
+    const stepExpected = escapeHtml(step.expected || '');
     
     stepCard.innerHTML = `
       <div class="step-card-header">
@@ -257,6 +263,7 @@ function renderStepsInEditor(rowIndex, container) {
         <button type="button" class="step-delete-btn" data-delete-step="${stepIndex}" title="Supprimer">🗑</button>
       </div>
       <textarea class="step-card-text" data-step-text="${stepIndex}" placeholder="Décrivez l'étape ${stepIndex + 1}...">${stepText}</textarea>
+      <textarea class="step-card-text" data-step-expected="${stepIndex}" placeholder="Résultat attendu de l'étape ${stepIndex + 1}...">${stepExpected}</textarea>
       <div class="step-card-image-zone">
         <div class="step-card-image-label">Capture de cette étape (optionnel)</div>
         <div class="step-card-image-drop" data-step-image="${stepIndex}" tabindex="0" style="outline: none;">
@@ -279,6 +286,14 @@ function renderStepsInEditor(rowIndex, container) {
       textarea.addEventListener('input', () => {
         state.rows[rowIndex].stepsArray[stepIndex].text = textarea.value;
         state.rows[rowIndex].steps = stepsArrayToString(state.rows[rowIndex].stepsArray);
+        save();
+      });
+    }
+
+    const expectedTextarea = stepCard.querySelector('[data-step-expected]');
+    if (expectedTextarea) {
+      expectedTextarea.addEventListener('input', () => {
+        state.rows[rowIndex].stepsArray[stepIndex].expected = expectedTextarea.value;
         save();
       });
     }
@@ -467,10 +482,10 @@ function addSamples() {
       scenario: 'Vérifier la connexion avec identifiants valides',
       steps: 'Accéder à la page de connexion\nEntrer un identifiant valide\nEntrer un mot de passe valide\nCliquer sur Connexion',
       stepsArray: [
-        { text: 'Accéder à la page de connexion', image: null },
-        { text: 'Entrer un identifiant valide', image: null },
-        { text: 'Entrer un mot de passe valide', image: null },
-        { text: 'Cliquer sur Connexion', image: null }
+        { text: 'Accéder à la page de connexion', expected: '', image: null },
+        { text: 'Entrer un identifiant valide', expected: '', image: null },
+        { text: 'Entrer un mot de passe valide', expected: '', image: null },
+        { text: 'Cliquer sur Connexion', expected: '', image: null }
       ],
       expected: 'L\'utilisateur est connecté et arrive sur le tableau de bord'
     },
@@ -481,10 +496,10 @@ function addSamples() {
       scenario: 'Vérifier le rejet de connexion avec mauvais mot de passe',
       steps: 'Accéder à la page de connexion\nEntrer un identifiant valide\nEntrer un mauvais mot de passe\nCliquer sur Connexion',
       stepsArray: [
-        { text: 'Accéder à la page de connexion', image: null },
-        { text: 'Entrer un identifiant valide', image: null },
-        { text: 'Entrer un mauvais mot de passe', image: null },
-        { text: 'Cliquer sur Connexion', image: null }
+        { text: 'Accéder à la page de connexion', expected: '', image: null },
+        { text: 'Entrer un identifiant valide', expected: '', image: null },
+        { text: 'Entrer un mauvais mot de passe', expected: '', image: null },
+        { text: 'Cliquer sur Connexion', expected: '', image: null }
       ],
       expected: 'Un message d\'erreur s\'affiche : "Identifiants invalides"'
     }
@@ -536,6 +551,7 @@ function exportCsvJira() {
     'Identificateur de cas de test',
     'Résumé',
     'Action',
+    'Résultat Attendu Étape',
     'Priorité',
     'Résultat Attendu',
     'Chemin de la bibliothèque de tests'
@@ -544,19 +560,28 @@ function exportCsvJira() {
   const globalLibraryPath = state.meta.xrayLibrary || '';
   const rows = [];
   state.rows.forEach(r => {
-    const steps = (Array.isArray(r.stepsArray) && r.stepsArray.length)
-      ? r.stepsArray.map(s => String(s?.text || '').trim()).filter(Boolean)
-      : String(r.steps || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const stepObjects = (Array.isArray(r.stepsArray) && r.stepsArray.length)
+      ? r.stepsArray
+        .map(s => ({
+          text: String(s?.text || '').trim(),
+          expected: String(s?.expected || '').trim()
+        }))
+        .filter(s => s.text || s.expected)
+      : String(r.steps || '')
+        .split(/\r?\n/)
+        .map(s => ({ text: s.trim(), expected: '' }))
+        .filter(s => s.text);
 
-    const safeSteps = steps.length ? steps : [''];
-    safeSteps.forEach((stepText, idx) => {
+    const safeSteps = stepObjects.length ? stepObjects : [{ text: '', expected: '' }];
+    safeSteps.forEach((stepObj, idx) => {
       const isFirst = idx === 0;
       rows.push([
         'test',
         isFirst ? 'Manual' : '',
         r.id || '',
         isFirst ? (r.scenario || '') : '',
-        stepText,
+        stepObj.text || '',
+        stepObj.expected || '',
         r.priority || 'Moyenne',
         r.expected || '',
         isFirst ? globalLibraryPath : ''
@@ -613,13 +638,15 @@ async function compressForExcel(dataUrl) {
 // L'import de la campagne supporte deja ce format multi-lignes.
 async function exportExcel() { // NOSONAR - legacy export flow kept explicit for maintainability
   const wb = XLSX.utils.book_new();
-  const header = ['ID', 'Priorité', 'Role', 'Scénario', 'Etape', 'Résultat Attendu', 'Captures Etapes DataURL', 'Chemin de la bibliothèque de tests'];
+  const header = ['ID', 'Priorité', 'Role', 'Scénario', 'Etape', 'Résultat Attendu Etape', 'Résultat Attendu', 'Captures Etapes DataURL', 'Chemin de la bibliothèque de tests'];
   const wsData = [header];
 
   const globalLibraryPath = state.meta.xrayLibrary || '';
 
   for (const r of state.rows) {
-    const arr = Array.isArray(r.stepsArray) && r.stepsArray.length > 0 ? r.stepsArray : [{ text: r.steps || '', image: null }];
+    const arr = Array.isArray(r.stepsArray) && r.stepsArray.length > 0
+      ? r.stepsArray
+      : [{ text: r.steps || '', expected: '', image: null }];
     for (let i = 0; i < arr.length; i++) {
       const step = arr[i];
       const imageCell = step.image ? await compressForExcel(step.image) : '';
@@ -629,6 +656,7 @@ async function exportExcel() { // NOSONAR - legacy export flow kept explicit for
         i === 0 ? r.role     : '',
         i === 0 ? r.scenario : '',
         step.text || '',
+        step.expected || '',
         i === 0 ? r.expected : '',   // Résultat attendu seulement sur la 1ere ligne
         imageCell,
         i === 0 ? globalLibraryPath : ''  // Bibliothèque Xray seulement sur la 1ere ligne
@@ -724,7 +752,8 @@ function importRowsFromAoa(aoa) { // NOSONAR - import rules intentionally centra
   const iRole = headers.findIndex(h => h.includes('donnees') || h.includes('role') || h.includes('profil'));
   const iScenario = headers.findIndex(h => h.includes('scenario') || h.includes('resum'));
   const iSteps = headers.findIndex(h => h.includes('action') || h.includes('etape'));
-  const iExpected = headers.findIndex(h => h.includes('attendu') || h.includes('resultat'));
+  const iStepExpected = headers.findIndex(h => (h.includes('attendu') || h.includes('resultat')) && (h.includes('etape') || h.includes('step')));
+  const iExpected = headers.findIndex(h => (h.includes('attendu') || h.includes('resultat')) && !(h.includes('etape') || h.includes('step')));
   const iStepImage = headers.findIndex(h => (h.includes('capture') || h.includes('image')) && (h.includes('etape') || h.includes('step') || h.includes('dataurl')));
   const iLibPath = headers.findIndex(h => h.includes('bibliotheque') || h.includes('library'));
 
@@ -732,17 +761,18 @@ function importRowsFromAoa(aoa) { // NOSONAR - import rules intentionally centra
   const byId = new Map();
   let current = null;
 
-  const appendStep = (target, stepText, stepImage) => {
+  const appendStep = (target, stepText, stepExpected, stepImage) => {
     const text = String(stepText || '').trim();
+    const expected = String(stepExpected || '').trim();
     const image = String(stepImage || '').trim();
     const safeImage = image.startsWith('data:image/') ? image : null;
-    if (!text && !safeImage) return;
+    if (!text && !expected && !safeImage) return;
     target.stepsArray = Array.isArray(target.stepsArray) ? target.stepsArray : [];
-    target.stepsArray.push({ text, image: safeImage });
+    target.stepsArray.push({ text, expected, image: safeImage });
     target.steps = stepsArrayToString(target.stepsArray);
   };
 
-  const createTest = ({ id, priority, role, scenario, expected, testLibraryPath, step, stepImage }) => {
+  const createTest = ({ id, priority, role, scenario, expected, testLibraryPath, step, stepExpected, stepImage }) => {
     const test = {
       id,
       priority,
@@ -753,7 +783,7 @@ function importRowsFromAoa(aoa) { // NOSONAR - import rules intentionally centra
       expected,
       testLibraryPath
     };
-    appendStep(test, step, stepImage);
+    appendStep(test, step, stepExpected, stepImage);
     imported.push(test);
     current = test;
     if (id) byId.set(id, test);
@@ -766,13 +796,16 @@ function importRowsFromAoa(aoa) { // NOSONAR - import rules intentionally centra
     const role = iRole >= 0 ? String(r[iRole] || '').trim() : '';
     const scenario = iScenario >= 0 ? String(r[iScenario] || '').trim() : '';
     const step = iSteps >= 0 ? String(r[iSteps] || '').trim() : '';
-    const expected = iExpected >= 0 ? String(r[iExpected] || '').trim() : '';
+    const stepExpected = iStepExpected >= 0 ? String(r[iStepExpected] || '').trim() : '';
+    const expected = iExpected >= 0
+      ? String(r[iExpected] || '').trim()
+      : '';
     const stepImage = iStepImage >= 0 ? String(r[iStepImage] || '').trim() : '';
     const testLibraryPath = iLibPath >= 0 ? String(r[iLibPath] || '').trim() : '';
     const hasAnchorWithoutId = !id && !!(scenario || role || expected || testLibraryPath || priorityRaw);
     const isContinuationRow = !id && !hasAnchorWithoutId;
 
-    if (!id && !scenario && !step && !expected && !role && !testLibraryPath) return;
+    if (!id && !scenario && !step && !stepExpected && !expected && !role && !testLibraryPath) return;
 
     if (id && byId.has(id)) {
       current = byId.get(id);
@@ -780,7 +813,7 @@ function importRowsFromAoa(aoa) { // NOSONAR - import rules intentionally centra
       if (scenario && !current.scenario) current.scenario = scenario;
       if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
       if (expected && !current.expected) current.expected = expected;
-      appendStep(current, step, stepImage);
+      appendStep(current, step, stepExpected, stepImage);
       return;
     }
 
@@ -789,11 +822,11 @@ function importRowsFromAoa(aoa) { // NOSONAR - import rules intentionally centra
       if (scenario && !current.scenario) current.scenario = scenario;
       if (testLibraryPath && !current.testLibraryPath) current.testLibraryPath = testLibraryPath;
       if (expected && !current.expected) current.expected = expected;
-      appendStep(current, step, stepImage);
+      appendStep(current, step, stepExpected, stepImage);
       return;
     }
 
-    createTest({ id, priority, role, scenario, expected, testLibraryPath, step, stepImage });
+    createTest({ id, priority, role, scenario, expected, testLibraryPath, step, stepExpected, stepImage });
   });
 
   if (!imported.length) return;
@@ -953,6 +986,20 @@ function parseQuotedArg(text) {
   return String(token?.value || '').trim();
 }
 
+function parseNamedAsyncCallTitle(line, callPattern) {
+  const src = String(line || '');
+  const callMatch = callPattern.exec(src);
+  if (!callMatch) return '';
+
+  const token = readQuotedString(src, callMatch.index + callMatch[0].length);
+  if (!token) return '';
+
+  const suffix = src.slice(token.end);
+  if (!/^\s*,\s*async\s*\(/.test(suffix)) return '';
+
+  return String(token.value || '').trim();
+}
+
 function describePlaywrightTarget(line) {
   const source = String(line || '');
   const role = /getByRole\(\s*['"`]([^'"`]+)['"`]\s*,\s*\{\s*name:\s*['"`]([^'"`]+)['"`]/.exec(source);
@@ -1030,14 +1077,14 @@ function lineToExpectedResult(line) {
   const txt = String(line || '').trim().replace(/;$/, '');
   if (!txt || txt.startsWith('//') || !txt.includes('expect(')) return '';
 
-  const visible = /expect\(([^)]*)\)\.(?:not\.)?toBeVisible\(/.exec(txt);
+  const visible = /expect\((.+)\)\.(?:not\.)?toBeVisible\(/.exec(txt);
   if (visible) {
     const isNot = /\.not\.toBeVisible\(/.test(txt);
     const target = describePlaywrightTarget(visible[1]);
     return isNot ? `${target} n'est pas visible` : `${target} est visible`;
   }
 
-  const textMatch = /expect\(([^)]*)\)\.(?:not\.)?toHaveText\(([^)]*)\)/.exec(txt);
+  const textMatch = /expect\((.+)\)\.(?:not\.)?toHaveText\((.+)\)/.exec(txt);
   if (textMatch) {
     const isNot = /\.not\.toHaveText\(/.test(txt);
     const target = describePlaywrightTarget(textMatch[1]);
@@ -1047,13 +1094,13 @@ function lineToExpectedResult(line) {
       : `${target} contient le texte "${expectedText}"`;
   }
 
-  const truthy = /expect\(([^)]*)\)\.(?:not\.)?toBeTruthy\(/.exec(txt);
+  const truthy = /expect\((.+)\)\.(?:not\.)?toBeTruthy\(/.exec(txt);
   if (truthy) {
     const isNot = /\.not\.toBeTruthy\(/.test(txt);
     return isNot ? 'La condition n est pas verifiee' : 'La condition est verifiee';
   }
 
-  return `Assertion Playwright verifiee: ${txt}`;
+  return 'Assertion fonctionnelle verifiee';
 }
 
 function extractPathBasename(filePath) {
@@ -1111,14 +1158,13 @@ function hasScreenshotCall(line) {
 function createEmptyImageContext() {
   return {
     byName: new Map(),
-    queue: [],
-    nextIndex: 0
+    indexedByTestStep: new Map(),
+    queue: []
   };
 }
 
 async function buildImageContext(files) {
   const context = createEmptyImageContext();
-  const indexed = new Map();
   for (const file of files) {
     if (!isImageFile(file)) continue;
     try {
@@ -1130,10 +1176,13 @@ async function buildImageContext(files) {
       const exact = String(file.name || '').toLowerCase();
       const base = extractPathBasename(file.name);
       const stem = stripFileExt(base);
-      const specMatch = /\.spec-(\d+)-/.exec(exact);
-      if (specMatch?.[1]) {
-        const stepIdx = parseInt(String(specMatch[1]), 10) - 1;
-        indexed.set(stepIdx, safeDataUrl);
+      const namedMatch = /(?:^|[-_])test[_-]?(\d+)(?:[-_])etape[_-]?(\d+)(?:[-_].*)?$/.exec(stem);
+      if (namedMatch?.[1] && namedMatch?.[2]) {
+        const testIdx = Number.parseInt(String(namedMatch[1]), 10) - 1;
+        const stepIdx = Number.parseInt(String(namedMatch[2]), 10) - 1;
+        if (testIdx >= 0 && stepIdx >= 0) {
+          context.indexedByTestStep.set(`${testIdx}:${stepIdx}`, safeDataUrl);
+        }
       }
       if (exact) context.byName.set(exact, safeDataUrl);
       if (base) context.byName.set(base, safeDataUrl);
@@ -1143,7 +1192,6 @@ async function buildImageContext(files) {
       console.debug('Image ignoree pendant import Playwright.', error);
     }
   }
-  context.indexed = indexed;
   return context;
 }
 
@@ -1156,33 +1204,14 @@ function resolveScreenshotImage(screenshotPath, imageContext) {
   const mapped = imageContext.byName.get(exact) || imageContext.byName.get(base) || imageContext.byName.get(stem) || null;
   if (mapped) return mapped;
 
-  if (imageContext.nextIndex < imageContext.queue.length) {
-    const fallback = imageContext.queue[imageContext.nextIndex];
-    imageContext.nextIndex += 1;
-    return fallback;
-  }
-
   return null;
 }
 
-function resolveStepImageByIndex(stepIndex, imageContext, usedImages) {
-  if (!imageContext?.indexed) return null;
-  const image = imageContext.indexed.get(stepIndex);
-  if (image && !usedImages.has(image)) {
-    usedImages.add(image);
-    return image;
-  }
-  return null;
-}
-
-function takeNextUnusedImage(imageContext, usedImages) {
-  if (!imageContext || !Array.isArray(imageContext.queue)) return null;
-  for (let i = imageContext.nextIndex; i < imageContext.queue.length; i += 1) {
-    const candidate = imageContext.queue[i];
-    if (!candidate || usedImages.has(candidate)) continue;
-    imageContext.nextIndex = i + 1;
-    return candidate;
-  }
+function resolveStepImageByTestAndIndex(testIndex, stepIndex, imageContext, usedImages) {
+  if (!imageContext?.indexedByTestStep) return null;
+  const key = `${testIndex}:${stepIndex}`;
+  const image = imageContext.indexedByTestStep.get(key);
+  if (image) return image;
   return null;
 }
 
@@ -1193,13 +1222,12 @@ function extractNamedTestSteps(lines) {
   let i = 0;
   while (i < lines.length) {
     const line = String(lines[i] || '');
-    const match = /test\.step\(\s*(["'`])(.+?)\1\s*,\s*async\s*\(/.exec(line);
-    if (!match) {
+    const title = parseNamedAsyncCallTitle(line, /\btest\.step\s*\(\s*/);
+    if (!title) {
       i += 1;
       continue;
     }
 
-    const title = String(match[2] || '').trim();
     const blockLines = [line];
     let depth = countBraceDelta(line);
     let j = i + 1;
@@ -1250,18 +1278,34 @@ function extractNamedRunSteps(lines) {
       continue;
     }
 
-    if (!/async\s*\([^)]*\)\s*=>\s*\{/.test(line)) {
+    const callbackPattern = /async\s*\([^)]*\)\s*=>\s*\{/;
+    let callHeader = line;
+    let callbackLineIndex = i;
+    let callbackMatch = callbackPattern.exec(callHeader);
+
+    while (!callbackMatch && callbackLineIndex + 1 < lines.length && callbackLineIndex - i < 25) {
+      callbackLineIndex += 1;
+      callHeader += `\n${String(lines[callbackLineIndex] || '')}`;
+      callbackMatch = callbackPattern.exec(callHeader);
+    }
+
+    if (!callbackMatch) {
       i += 1;
       continue;
     }
 
-    const beforeCallback = line.split(/async\s*\([^)]*\)\s*=>\s*\{/)[0] || '';
+    const beforeCallback = callHeader.slice(0, callbackMatch.index);
     const quotedArgs = extractQuotedLiterals(beforeCallback);
     const title = quotedArgs.length ? String(quotedArgs.at(-1) || '').trim() : '';
 
-    const blockLines = [line];
-    let depth = countBraceDelta(line);
-    let j = i + 1;
+    // Keep nearby parent lines so attenduEtape declared before runStep is available.
+    const contextStart = Math.max(0, i - 12);
+    const contextLines = lines.slice(contextStart, callbackLineIndex + 1);
+
+    const blockStartLine = String(lines[callbackLineIndex] || '');
+    const blockLines = [blockStartLine];
+    let depth = countBraceDelta(blockStartLine);
+    let j = callbackLineIndex + 1;
 
     while (j < lines.length && depth > 0) {
       const nextLine = String(lines[j] || '');
@@ -1272,6 +1316,7 @@ function extractNamedRunSteps(lines) {
 
     namedSteps.push({
       title: title || `Etape ${namedSteps.length + 1}`,
+      contextLines,
       lines: blockLines
     });
 
@@ -1302,19 +1347,79 @@ function extractNamedRunStepsLoose(lines) {
   return namedSteps;
 }
 
-// Recupere un attendu explicite (const attendu = "...") quand il existe dans le bloc.
-function extractExpectedFromLines(lines) {
+function dedupeStrings(values) {
+  const out = [];
+  const seen = new Set();
+  for (const value of Array.isArray(values) ? values : []) {
+    const normalized = String(value || '').trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function extractConstExpectedValue(content, names = []) {
+  for (const name of names) {
+    const escaped = String(name || '').replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    const regex = new RegExp(String.raw`\b(?:const|let|var)\s+${escaped}\s*=\s*`);
+    const match = regex.exec(content);
+    if (!match) continue;
+    const token = readQuotedString(content, match.index + match[0].length);
+    const expected = String(token?.value || '').trim();
+    if (expected) return expected;
+  }
+  return '';
+}
+
+function extractGlobalExpectedFromLines(lines) {
+  const content = (Array.isArray(lines) ? lines : []).join('\n');
+  const explicit = extractConstExpectedValue(content, ['attenduGlobal', 'attendu', 'expectedGlobal', 'expectedResult']);
+  if (explicit) return [explicit];
+  return [];
+}
+
+function extractStepExpectedFromLines(lines) {
   const content = (Array.isArray(lines) ? lines : []).join('\n');
 
-  // Preferred source: explicit constant in the test body.
-  const constAttendu = /\bconst\s+attendu\s*=\s*/.exec(content);
-  if (constAttendu) {
-    const token = readQuotedString(content, constAttendu.index + constAttendu[0].length);
-    const expected = String(token?.value || '').trim();
-    if (expected) return [expected];
-  }
+  const attachedExpected = (() => {
+    const attachRegex = /testInfo\.attach\s*\(/g;
+    let match;
+    while ((match = attachRegex.exec(content)) !== null) {
+      const snippet = content.slice(match.index, match.index + 1200);
+      if (!/['"`]attendu-etape['"`]/.test(snippet)) continue;
 
-  return [];
+      const bodyVar = /\bbody\s*:\s*([a-zA-Z_$][\w$]*)/.exec(snippet);
+      if (bodyVar?.[1]) {
+        const resolved = extractConstExpectedValue(content, [String(bodyVar[1]).trim()]);
+        if (resolved) return resolved;
+      }
+
+      const bodyLiteralStart = /\bbody\s*:\s*/.exec(snippet);
+      if (bodyLiteralStart) {
+        const token = readQuotedString(snippet, bodyLiteralStart.index + bodyLiteralStart[0].length);
+        const expected = String(token?.value || '').trim();
+        if (expected) return expected;
+      }
+    }
+    return '';
+  })();
+
+  if (attachedExpected) return [attachedExpected];
+
+  const explicit = extractConstExpectedValue(content, ['attenduEtape', 'expectedStep', 'stepExpected', 'expected_step']);
+  if (explicit) return [explicit];
+
+  const inferred = (Array.isArray(lines) ? lines : []).map(line => lineToExpectedResult(line)).filter(Boolean);
+  return dedupeStrings(inferred);
+}
+
+function appendExpectedText(existing, addition) {
+  const left = String(existing || '').trim();
+  const right = String(addition || '').trim();
+  if (!right) return left;
+  if (!left) return right;
+  return dedupeStrings(`${left}\n${right}`.split(/\r?\n/)).join('\n');
 }
 
 // Supprime les doublons text+image pour eviter les repetitions a l'import.
@@ -1323,12 +1428,13 @@ function dedupeStepsArray(stepsArray) {
   const seen = new Set();
   (Array.isArray(stepsArray) ? stepsArray : []).forEach(step => {
     const text = String(step?.text || '').trim();
+    const expected = String(step?.expected || '').trim();
     const image = String(step?.image || '').trim();
-    const key = `${text}__${image}`;
-    if (!text && !image) return;
+    const key = `${text}__${expected}__${image}`;
+    if (!text && !expected && !image) return;
     if (seen.has(key)) return;
     seen.add(key);
-    result.push({ text, image: image || null });
+    result.push({ text, expected, image: image || null });
   });
   return result;
 }
@@ -1348,53 +1454,55 @@ function resolveStepImage(stepLines, imageContext, usedImages) {
     return fromPath;
   }
 
-  const fallback = takeNextUnusedImage(imageContext, usedImages);
-  if (fallback) {
-    usedImages.add(fallback);
-    return fallback;
-  }
-
   return null;
 }
 
 // Orchestrateur principal: construit une ligne de test a partir d'un scenario Playwright.
 function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSONAR - orchestrates multiple import strategies
   const stepsArray = [];
-  const expected = extractExpectedFromLines(lines);
+  const expected = extractGlobalExpectedFromLines(lines);
   const usedImages = new Set();
   let lastStepIndex = -1;
 
   const namedSteps = extractNamedTestSteps(lines);
   const runSteps = namedSteps.length ? [] : extractNamedRunSteps(lines);
   const looseRunSteps = (namedSteps.length || runSteps.length) ? [] : extractNamedRunStepsLoose(lines);
-  const canonicalSteps = namedSteps.length ? namedSteps : (runSteps.length ? runSteps : looseRunSteps);
+  let canonicalSteps = looseRunSteps;
+  if (namedSteps.length) canonicalSteps = namedSteps;
+  else if (runSteps.length) canonicalSteps = runSteps;
   if (canonicalSteps.length) {
     canonicalSteps.forEach((step, stepIndex) => {
-      const indexedImage = resolveStepImageByIndex(stepIndex, imageContext, usedImages);
+      const sourceLines = Array.isArray(step?.contextLines)
+        ? [...step.contextLines, ...step.lines]
+        : step.lines;
+      const stepExpected = extractStepExpectedFromLines(sourceLines).join('\n');
+      const indexedImage = resolveStepImageByTestAndIndex(index, stepIndex, imageContext, usedImages);
       if (indexedImage) {
         stepsArray.push({
           text: step.title || `Etape ${stepIndex + 1}`,
+          expected: stepExpected,
           image: indexedImage
         });
       } else {
         const image = resolveStepImage(step.lines, imageContext, usedImages);
         stepsArray.push({
           text: step.title || `Etape ${stepIndex + 1}`,
+          expected: stepExpected,
           image: image || null
         });
       }
-      extractExpectedFromLines(step.lines).forEach(exp => expected.push(exp));
+      if (!expected.length && stepExpected) expected.push(stepExpected);
     });
 
-    for (const step of stepsArray) {
-      if (step.image) continue;
-      const nextImage = takeNextUnusedImage(imageContext, usedImages);
-      if (!nextImage) break;
-      step.image = nextImage;
-      usedImages.add(nextImage);
-    }
-
-    const finalSteps = dedupeStepsArray(stepsArray);
+    const finalSteps = stepsArray
+      .map(step => ({
+        text: String(step?.text || '').trim(),
+        expected: String(step?.expected || '').trim(),
+        image: step?.image || null
+      }))
+      .filter(step => step.text || step.expected || step.image);
+    const firstStepExpected = finalSteps.map(step => String(step?.expected || '').trim()).find(Boolean) || '';
+    const rowExpected = expected.length ? expected[0] : firstStepExpected;
 
     const id = `PW-${String(index + 1).padStart(3, '0')}`;
     return {
@@ -1404,7 +1512,7 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
       scenario: title || `Scenario Playwright ${index + 1}`,
       steps: stepsArrayToString(finalSteps),
       stepsArray: finalSteps,
-      expected: expected.length ? expected[0] : '',
+      expected: rowExpected,
       testLibraryPath: ''
     };
   }
@@ -1413,7 +1521,7 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
     const line = lines[i];
     const step = lineToPlaywrightStep(line);
     if (step) {
-      stepsArray.push({ text: step, image: null });
+      stepsArray.push({ text: step, expected: '', image: null });
       lastStepIndex = stepsArray.length - 1;
     }
 
@@ -1423,7 +1531,7 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
     const screenshotDetected = screenshotPath || hasScreenshotCall(screenshotWindow);
     if (screenshotDetected) {
       if (lastStepIndex < 0) {
-        stepsArray.push({ text: 'Capture d ecran', image: null });
+        stepsArray.push({ text: 'Capture d ecran', expected: '', image: null });
         lastStepIndex = stepsArray.length - 1;
       }
       const imageData = resolveScreenshotImage(screenshotPath, imageContext);
@@ -1434,20 +1542,17 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
     }
 
     const exp = lineToExpectedResult(line);
-    if (exp) expected.push(exp);
-  }
-
-  // Fallback: if some images were selected but not linked by path,
-  // distribute remaining images across steps without captures.
-  for (const step of stepsArray) {
-    if (step.image) continue;
-    const nextImage = takeNextUnusedImage(imageContext, usedImages);
-    if (!nextImage) break;
-    step.image = nextImage;
-    usedImages.add(nextImage);
+    if (exp) {
+      if (lastStepIndex >= 0 && stepsArray[lastStepIndex]) {
+        stepsArray[lastStepIndex].expected = appendExpectedText(stepsArray[lastStepIndex].expected, exp);
+      }
+      if (!expected.length) expected.push(exp);
+    }
   }
 
   const finalSteps = dedupeStepsArray(stepsArray);
+  const firstStepExpected = finalSteps.map(step => String(step?.expected || '').trim()).find(Boolean) || '';
+  const rowExpected = expected.length ? expected[0] : firstStepExpected;
   const id = `PW-${String(index + 1).padStart(3, '0')}`;
   return {
     id,
@@ -1456,14 +1561,80 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
     scenario: title || `Scenario Playwright ${index + 1}`,
     steps: stepsArrayToString(finalSteps),
     stepsArray: finalSteps,
-    expected: expected.length ? expected[0] : '',
+    expected: rowExpected,
     testLibraryPath: ''
   };
 }
 
 // Extrait les blocs test(...) d'un fichier Playwright avec suivi de profondeur d'accolades.
+function extractPlaywrightHelperBlocks(lines) {
+  const helpers = new Map();
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = String(lines[i] || '');
+    const decl = /^\s*(?:async\s+)?function\s+([a-zA-Z_$][\w$]*)\s*\(/.exec(line);
+    if (!decl?.[1]) {
+      i += 1;
+      continue;
+    }
+
+    const helperName = String(decl[1]).trim();
+    const blockLines = [line];
+    let depth = countBraceDelta(line);
+    let j = i + 1;
+
+    while (j < lines.length && depth > 0) {
+      const nextLine = String(lines[j] || '');
+      blockLines.push(nextLine);
+      depth += countBraceDelta(nextLine);
+      j += 1;
+    }
+
+    if (helperName && blockLines.length > 1) {
+      helpers.set(helperName, blockLines);
+    }
+
+    i = j;
+  }
+
+  return helpers;
+}
+
+function expandTestLinesWithHelpers(lines, helperBlocks, stack = new Set()) {
+  const expanded = [];
+  const source = Array.isArray(lines) ? lines : [];
+  const helperNames = Array.from(helperBlocks?.keys?.() || []);
+
+  source.forEach((line) => {
+    const raw = String(line || '');
+    const calledHelpers = helperNames.filter((name) => {
+      const escaped = String(name || '').replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+      return new RegExp(String.raw`\b${escaped}\s*\(`).test(raw);
+    });
+
+    if (!calledHelpers.length) {
+      expanded.push(raw);
+      return;
+    }
+
+    calledHelpers.forEach((helperName) => {
+      if (stack.has(helperName)) return;
+      const nextStack = new Set(stack);
+      nextStack.add(helperName);
+      const helperLines = helperBlocks.get(helperName) || [];
+      const helperBody = helperLines.length > 2 ? helperLines.slice(1, -1) : helperLines;
+      const helperExpanded = expandTestLinesWithHelpers(helperBody, helperBlocks, nextStack);
+      expanded.push(...helperExpanded);
+    });
+  });
+
+  return expanded;
+}
+
 function extractPlaywrightTests(text) {
   const lines = String(text || '').split(/\r?\n/);
+  const helperBlocks = extractPlaywrightHelperBlocks(lines);
   const tests = [];
   let collecting = false;
   let braceDepth = 0;
@@ -1473,10 +1644,10 @@ function extractPlaywrightTests(text) {
   lines.forEach(rawLine => {
     const line = String(rawLine || '');
     if (!collecting) {
-      const testStart = /\btest(?:\.[a-zA-Z]+)?\(\s*(["'`])(.+?)\1\s*,\s*async\s*\(/.exec(line);
-      if (!testStart) return;
+      const title = parseNamedAsyncCallTitle(line, /\btest(?:\.only)?\s*\(\s*/);
+      if (!title) return;
       collecting = true;
-      currentTitle = testStart[2].trim();
+      currentTitle = title;
       currentLines = [];
       braceDepth = countBraceDelta(line);
       return;
@@ -1484,7 +1655,8 @@ function extractPlaywrightTests(text) {
 
     braceDepth += countBraceDelta(line);
     if (braceDepth <= 0) {
-      tests.push({ title: currentTitle, lines: [...currentLines] });
+      const expandedLines = expandTestLinesWithHelpers(currentLines, helperBlocks);
+      tests.push({ title: currentTitle, lines: expandedLines });
       collecting = false;
       braceDepth = 0;
       currentTitle = '';
@@ -1511,14 +1683,14 @@ async function importRowsFromPlaywrightText(text, imageDataUrlByName = new Map()
   let lineFallbackCount = 0;
 
   tests.forEach(test => {
-    const named = extractNamedTestSteps(test.lines);
-    if (named.length) {
-      namedTestStepCount += named.length;
-      return;
-    }
     const run = extractNamedRunSteps(test.lines);
     if (run.length) {
       runStepCount += run.length;
+      return;
+    }
+    const named = extractNamedTestSteps(test.lines);
+    if (named.length) {
+      namedTestStepCount += named.length;
       return;
     }
     lineFallbackCount += 1;
@@ -1550,12 +1722,12 @@ async function importRowsFromPlaywrightText(text, imageDataUrlByName = new Map()
   renderStats();
   let mode;
   let modeCount;
-  if (namedTestStepCount > 0) {
-    mode = 'test.step';
-    modeCount = namedTestStepCount;
-  } else if (runStepCount > 0) {
+  if (runStepCount > 0) {
     mode = 'runStep';
     modeCount = runStepCount;
+  } else if (namedTestStepCount > 0) {
+    mode = 'test.step';
+    modeCount = namedTestStepCount;
   } else {
     mode = 'line';
     modeCount = lineFallbackCount;
@@ -1600,12 +1772,38 @@ async function importPlaywrightFiles(fileList) {
     const fileName = String(specFile?.name || '');
     // Extract stem: admin_connexion from admin_connexion.spec.ts
     const specFileName = fileName.replace(/\.spec\.(ts|js)$/i, '');
+    const noExt = fileName.replace(/\.[^.]+$/, '');
+    const plainSpecName = noExt.replace(/\.spec$/i, '');
+    const validPrefixes = new Set(
+      [specFileName, noExt, plainSpecName]
+        .map(name => String(name || '').toLowerCase())
+        .filter(Boolean)
+    );
     
-    // Match images by spec filename prefix (e.g., admin_connexion.spec-*.jpg)
-    const relatedImages = imageFiles.filter(img => {
-      const imgName = String(img?.name || '');
-      return imgName.startsWith(specFileName + '.spec-');
+    // Match images by spec prefix, including pattern: [spec]-Test_[N]-Etape_[N].
+    let relatedImages = imageFiles.filter(img => {
+      const imgName = String(img?.name || '').toLowerCase();
+      for (const prefix of validPrefixes) {
+        if (imgName.startsWith(`${prefix}-`) || imgName.startsWith(`${prefix}_`) || imgName.startsWith(`${prefix}.`)) {
+          return true;
+        }
+      }
+      return false;
     });
+
+    // Accept generic deterministic names even without spec prefix:
+    // Test_01-Etape_01-connexion-admin(.png)
+    if (!relatedImages.length) {
+      relatedImages = imageFiles.filter(img => {
+        const stem = stripFileExt(extractPathBasename(String(img?.name || '')));
+        return /(?:^|[-_])test[_-]?\d+(?:[-_])etape[_-]?\d+(?:[-_].*)?$/.test(stem);
+      });
+    }
+
+    // Last fallback: if one spec only, use all selected images.
+    if (!relatedImages.length && toProcess.length === 1) {
+      relatedImages = imageFiles;
+    }
 
     const text = await specFile.text();
     const imageContext = await buildImageContext(relatedImages);
