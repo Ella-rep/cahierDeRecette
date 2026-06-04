@@ -263,6 +263,7 @@ function renderStepsInEditor(rowIndex, container) {
         <button type="button" class="step-delete-btn" data-delete-step="${stepIndex}" title="Supprimer">🗑</button>
       </div>
       <textarea class="step-card-text" data-step-text="${stepIndex}" placeholder="Décrivez l'étape ${stepIndex + 1}...">${stepText}</textarea>
+      <div class="step-card-image-label">Résultat attendu de l'étape</div>
       <textarea class="step-card-text" data-step-expected="${stepIndex}" placeholder="Résultat attendu de l'étape ${stepIndex + 1}...">${stepExpected}</textarea>
       <div class="step-card-image-zone">
         <div class="step-card-image-label">Capture de cette étape (optionnel)</div>
@@ -1491,7 +1492,6 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
           image: image || null
         });
       }
-      if (!expected.length && stepExpected) expected.push(stepExpected);
     });
 
     const finalSteps = stepsArray
@@ -1501,8 +1501,7 @@ function buildPlaywrightRow(title, lines, index, imageContext = null) { // NOSON
         image: step?.image || null
       }))
       .filter(step => step.text || step.expected || step.image);
-    const firstStepExpected = finalSteps.map(step => String(step?.expected || '').trim()).find(Boolean) || '';
-    const rowExpected = expected.length ? expected[0] : firstStepExpected;
+    const rowExpected = expected.length ? expected[0] : '';
 
     const id = `PW-${String(index + 1).padStart(3, '0')}`;
     return {
